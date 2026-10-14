@@ -1,0 +1,262 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Cinzel:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* DEFAULT THEME: Warm Editorial Linen (Light Theme by Default) */
+  --bg-primary: #f8f6f0;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --border-subtle: rgba(28, 24, 21, 0.12);
+  --border-strong: rgba(28, 24, 21, 0.28);
+  --ink-primary: #191614;
+  --ink-secondary: #48413b;
+  --ink-muted: #746c63;
+  --accent-ochre: #b47528;
+  --accent-ochre-dim: rgba(180, 117, 40, 0.12);
+  --accent-cypress: #245741;
+  --accent-cypress-dim: rgba(36, 87, 65, 0.15);
+  --accent-terracotta: #ab442e;
+  --font-serif: 'Newsreader', Georgia, Cambria, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-arabic: 'Noto Naskh Arabic', 'Amiri', serif;
+}
+
+[data-theme='light'] {
+  /* Explicit light theme */
+  --bg-primary: #f8f6f0;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --border-subtle: rgba(28, 24, 21, 0.12);
+  --border-strong: rgba(28, 24, 21, 0.28);
+  --ink-primary: #191614;
+  --ink-secondary: #48413b;
+  --ink-muted: #746c63;
+  --accent-ochre: #b47528;
+  --accent-ochre-dim: rgba(180, 117, 40, 0.12);
+  --accent-cypress: #245741;
+  --accent-cypress-dim: rgba(36, 87, 65, 0.15);
+  --accent-terracotta: #ab442e;
+}
+
+[data-theme='dark'] {
+  /* Slate / Charcoal Dark Theme (NOT pitch black) with strict contrast ratios */
+  --bg-primary: #1e222b;
+  --bg-surface: #262c37;
+  --bg-surface-elevated: #2f3644;
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --ink-primary: #f8fafc;
+  --ink-secondary: #cbd5e1;
+  --ink-muted: #94a3b8;
+  --accent-ochre: #e09f48;
+  --accent-ochre-dim: rgba(224, 159, 72, 0.18);
+  --accent-cypress: #4e9473;
+  --accent-cypress-dim: rgba(78, 148, 115, 0.22);
+  --accent-terracotta: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px);
+  background-size: 28px 28px;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Editorial Typography */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-arabic {
+  font-family: var(--font-arabic);
+  direction: rtl;
+  text-align: right;
+  line-height: 2.1;
+  font-size: 1.35em;
+  font-feature-settings: "cv01" on, "cv02" on;
+}
+
+/* Distinct signature: dual-tone editorial headline rule */
+.editorial-title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+}
+
+.rule-ochre {
+  position: relative;
+}
+.rule-ochre::after {
+  content: '';
+  display: block;
+  width: 38px;
+  height: 2px;
+  background-color: var(--accent-ochre);
+  margin-top: 0.6rem;
+}
+
+/* Explicit high-contrast text rules across both themes */
+[data-theme='light'] .text-white {
+  color: var(--ink-primary) !important;
+}
+[data-theme='light'] .text-slate-200 {
+  color: var(--ink-primary) !important;
+}
+[data-theme='light'] .text-slate-300 {
+  color: var(--ink-secondary) !important;
+}
+[data-theme='light'] .text-slate-400 {
+  color: var(--ink-muted) !important;
+}
+[data-theme='light'] .text-slate-500 {
+  color: var(--ink-muted) !important;
+}
+
+[data-theme='dark'] .text-white {
+  color: #f8fafc !important;
+}
+[data-theme='dark'] .text-slate-200 {
+  color: #f1f5f9 !important;
+}
+[data-theme='dark'] .text-slate-300 {
+  color: #e2e8f0 !important;
+}
+[data-theme='dark'] .text-slate-400 {
+  color: #94a3b8 !important;
+}
+[data-theme='dark'] .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Input / Dropdown contrast */
+input, select, textarea {
+  background-color: var(--bg-surface) !important;
+  color: var(--ink-primary) !important;
+  border-color: var(--border-subtle) !important;
+}
+input::placeholder {
+  color: var(--ink-muted) !important;
+}
+
+/* Clean Editorial Card & Section Panels */
+.editorial-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease;
+}
+
+.editorial-panel:hover {
+  border-color: var(--border-strong);
+}
+
+/* Flashcard 3D flip */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Container */
+.container-max {
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+@media (max-width: 640px) {
+  .container-max {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+/* Custom Editorial Button */
+.btn-ochre {
+  background-color: var(--accent-ochre);
+  color: #121316;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+.btn-ochre:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+[data-theme='dark'] .btn-ochre {
+  color: #0f172a !important;
+}
+
+.btn-quiet {
+  background-color: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--ink-secondary);
+  transition: all 0.2s ease;
+}
+.btn-quiet:hover {
+  border-color: var(--border-strong);
+  color: var(--ink-primary);
+  background-color: var(--accent-ochre-dim);
+}
+
+/* Arabic harakat enhancements */
+.harakat-text {
+  font-feature-settings: "cv01" on, "cv02" on;
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Arabic Virtual Keyboard Styling */
+.arabic-custom-keyboard.hg-theme-default {
+  background-color: transparent !important;
+  font-family: var(--font-arabic) !important;
+}
+
+.arabic-custom-keyboard .hg-button {
+  background: var(--bg-surface-elevated) !important;
+  color: var(--ink-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 0.5rem !important;
+  font-size: 1.25rem !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.15s ease !important;
+}
+
+.arabic-custom-keyboard .hg-button:hover {
+  background: var(--accent-ochre-dim) !important;
+  border-color: var(--accent-ochre) !important;
+  color: var(--accent-ochre) !important;
+}
+
+.arabic-custom-keyboard .hg-button:active {
+  transform: scale(0.96) !important;
+}
