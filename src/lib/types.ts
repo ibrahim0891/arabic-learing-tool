@@ -27,6 +27,25 @@ export interface Word {
   lastReviewedDate?: string; // ISO string
 }
 
+export interface DraftWord {
+  id: string;
+  arabic: string;
+  transliteration: string;
+  english: string;
+  wordType: string;
+  presentTenseI?: string;
+  presentTenseHe?: string;
+  root?: string;
+  exampleArabic: string;
+  exampleTransliteration: string;
+  exampleEnglish: string;
+  explanation: string;
+  topic: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  createdAt: string;
+  sourceTopic?: string;
+}
+
 export interface WordSet {
   id: string;
   title: string;

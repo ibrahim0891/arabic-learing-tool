@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Settings,
   RotateCcw,
@@ -23,8 +24,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetCompleted,
   onNavigateHome,
 }) => {
+  const [mounted, setMounted] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<'progress' | 'all' | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleReset = async (action: 'reset_progress_only' | 'reset_all') => {
@@ -182,9 +188,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {/* Confirmation Modal */}
-      {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-md p-6 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-2xl shadow-2xl space-y-4">
+      {confirmDialog && mounted && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md p-6 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-2xl shadow-2xl space-y-4 animate-fadeIn">
             <div className="flex items-center gap-2.5 text-[var(--accent-terracotta)]">
               <ShieldAlert className="w-5 h-5 shrink-0" />
               <h4 className="editorial-title text-lg font-bold">
@@ -228,7 +234,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -50,7 +50,28 @@ export async function POST(req: NextRequest) {
         revisionWords,
       });
 
-      return NextResponse.json(generatedSet);
+      // Automatically save unique generated words to draft collection in database
+      let draftsAdded = 0;
+      if (generatedSet?.words && Array.isArray(generatedSet.words) && generatedSet.words.length > 0) {
+        try {
+          const draftResult = await dataStore.saveDraftWords(
+            generatedSet.words.map(w => ({
+              ...w,
+              topic: (w as any).topic || topic,
+              difficulty: (w as any).difficulty || difficulty,
+              sourceTopic: topic,
+            }))
+          );
+          draftsAdded = draftResult.addedCount;
+        } catch (draftErr) {
+          console.error('Failed to auto-save to draft:', draftErr);
+        }
+      }
+
+      return NextResponse.json({
+        ...generatedSet,
+        autoSavedToDraftCount: draftsAdded,
+      });
     }
 
     // Action: "save" - saves words to Supabase

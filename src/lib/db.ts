@@ -69,6 +69,27 @@ function getDatabaseInstance() {
       CREATE INDEX IF NOT EXISTS idx_words_nextReviewDate ON words(nextReviewDate);
       CREATE INDEX IF NOT EXISTS idx_words_setId ON words(setId);
 
+      CREATE TABLE IF NOT EXISTS draft_words (
+        id TEXT PRIMARY KEY,
+        arabic TEXT NOT NULL,
+        transliteration TEXT NOT NULL,
+        english TEXT NOT NULL,
+        wordType TEXT NOT NULL,
+        presentTenseI TEXT,
+        presentTenseHe TEXT,
+        root TEXT,
+        exampleArabic TEXT NOT NULL,
+        exampleTransliteration TEXT NOT NULL,
+        exampleEnglish TEXT NOT NULL,
+        explanation TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        sourceTopic TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_draft_words_arabic ON draft_words(arabic);
+
       CREATE TABLE IF NOT EXISTS study_sessions (
         id TEXT PRIMARY KEY,
         date TEXT NOT NULL,

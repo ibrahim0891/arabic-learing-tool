@@ -1,12 +1,55 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import db from './db';
-import { Word, WordSet, DashboardStats, StudySessionLog } from './types';
+import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord } from './types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xqzkgespanhdzbudaeoz.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_aYl97LnIVJoQWLRslNWlWg_63YGRjK5';
 
 // Direct Supabase client for API routes
 export const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+
+// Helper to convert Supabase row (snake_case) to DraftWord
+export function mapSupabaseDraftToModel(row: any): DraftWord {
+  return {
+    id: row.id,
+    arabic: row.arabic,
+    transliteration: row.transliteration || '',
+    english: row.english,
+    wordType: row.word_type || 'noun',
+    presentTenseI: row.present_tense_i,
+    presentTenseHe: row.present_tense_he,
+    root: row.root,
+    exampleArabic: row.example_arabic,
+    exampleTransliteration: row.example_transliteration,
+    exampleEnglish: row.example_english,
+    explanation: row.explanation || '',
+    topic: row.topic || 'daily life',
+    difficulty: row.difficulty || 'beginner',
+    createdAt: row.created_at || new Date().toISOString(),
+    sourceTopic: row.source_topic,
+  };
+}
+
+export function mapDraftModelToSupabase(draft: Partial<DraftWord>): any {
+  return {
+    id: draft.id,
+    arabic: draft.arabic,
+    transliteration: draft.transliteration || '',
+    english: draft.english,
+    word_type: draft.wordType || 'noun',
+    present_tense_i: draft.presentTenseI || null,
+    present_tense_he: draft.presentTenseHe || null,
+    root: draft.root || null,
+    example_arabic: draft.exampleArabic || '',
+    example_transliteration: draft.exampleTransliteration || '',
+    example_english: draft.exampleEnglish || '',
+    explanation: draft.explanation || '',
+    topic: draft.topic || 'daily life',
+    difficulty: draft.difficulty || 'beginner',
+    created_at: draft.createdAt || new Date().toISOString(),
+    source_topic: draft.sourceTopic || null,
+  };
+}
 
 // Helper to convert Supabase row (snake_case) to application Word (camelCase)
 export function mapSupabaseWordToModel(row: any): Word {
@@ -307,6 +350,17 @@ export const dataStore = {
     return true;
   },
 
+  // Delete multiple words
+  async deleteWords(ids: string[]): Promise<boolean> {
+    if (!ids || ids.length === 0) return true;
+    try {
+      await supabase.from('words').delete().in('id', ids);
+    } catch (_) {}
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(`DELETE FROM words WHERE id IN (${placeholders})`).run(...ids);
+    return true;
+  },
+
   // Get word sets
   async getWordSets(): Promise<WordSet[]> {
     try {
@@ -407,5 +461,117 @@ export const dataStore = {
       recentSessions,
       accuracyRate: totalLearned > 0 ? Math.min(100, Math.round(((mastered + currentlyStudying) / totalLearned) * 100)) : 85,
     };
+  },
+
+  // ================= DRAFT WORDS COLLECTION =================
+  async getDraftWords(): Promise<DraftWord[]> {
+    try {
+      const { data, error } = await supabase.from('draft_words').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        return data.map(mapSupabaseDraftToModel);
+      }
+    } catch (_) {}
+
+    try {
+      return db.prepare('SELECT * FROM draft_words ORDER BY createdAt DESC').all() as DraftWord[];
+    } catch (_) {
+      return [];
+    }
+  },
+
+  // Save new unique draft words (ignores words already in draft or already in library)
+  async saveDraftWords(words: Partial<DraftWord>[]): Promise<{ addedCount: number }> {
+    const existingDrafts = await this.getDraftWords();
+    const existingWords = await this.getWords();
+
+    const knownArabic = new Set<string>([
+      ...existingDrafts.map(d => d.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim()),
+      ...existingWords.map(w => w.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim()),
+    ]);
+
+    const newDrafts: DraftWord[] = [];
+    const nowIso = new Date().toISOString();
+
+    for (const w of words) {
+      if (!w.arabic) continue;
+      const stripped = w.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+      if (knownArabic.has(stripped)) {
+        continue; // Skip duplicates automatically
+      }
+      knownArabic.add(stripped);
+
+      const draftItem: DraftWord = {
+        id: w.id || `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        arabic: w.arabic.trim(),
+        transliteration: w.transliteration || '',
+        english: (w.english || '').trim(),
+        wordType: w.wordType || 'noun',
+        presentTenseI: w.presentTenseI,
+        presentTenseHe: w.presentTenseHe,
+        root: w.root,
+        exampleArabic: w.exampleArabic || '',
+        exampleTransliteration: w.exampleTransliteration || '',
+        exampleEnglish: w.exampleEnglish || '',
+        explanation: w.explanation || '',
+        topic: w.topic || 'daily life',
+        difficulty: (w.difficulty as any) || 'beginner',
+        createdAt: nowIso,
+        sourceTopic: w.sourceTopic || w.topic,
+      };
+      newDrafts.push(draftItem);
+    }
+
+    if (newDrafts.length === 0) {
+      return { addedCount: 0 };
+    }
+
+    // Insert to Supabase
+    try {
+      const payload = newDrafts.map(mapDraftModelToSupabase);
+      await supabase.from('draft_words').insert(payload);
+    } catch (_) {}
+
+    // Insert to SQLite
+    try {
+      const insert = db.prepare(`
+        INSERT OR REPLACE INTO draft_words (
+          id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
+          exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
+          createdAt, sourceTopic
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const d of newDrafts) {
+        insert.run(
+          d.id, d.arabic, d.transliteration, d.english, d.wordType,
+          d.presentTenseI || null, d.presentTenseHe || null, d.root || null,
+          d.exampleArabic, d.exampleTransliteration, d.exampleEnglish, d.explanation,
+          d.topic, d.difficulty, d.createdAt, d.sourceTopic || null
+        );
+      }
+    } catch (_) {}
+
+    return { addedCount: newDrafts.length };
+  },
+
+  // Delete single draft word (e.g. after moving to word bank or rejecting)
+  async deleteDraftWord(id: string): Promise<boolean> {
+    try {
+      await supabase.from('draft_words').delete().eq('id', id);
+    } catch (_) {}
+    try {
+      db.prepare('DELETE FROM draft_words WHERE id = ?').run(id);
+    } catch (_) {}
+    return true;
+  },
+
+  // Clear all drafts
+  async clearDraftWords(): Promise<boolean> {
+    try {
+      await supabase.from('draft_words').delete().neq('id', 'dummy');
+    } catch (_) {}
+    try {
+      db.prepare('DELETE FROM draft_words').run();
+    } catch (_) {}
+    return true;
   }
 };

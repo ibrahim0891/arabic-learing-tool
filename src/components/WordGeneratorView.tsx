@@ -8,9 +8,11 @@ import {
   Loader2,
   BookmarkPlus,
   ArrowRight,
-  Info
+  Info,
+  Inbox
 } from 'lucide-react';
 import { AudioPronounceButton } from './AudioPronounceButton';
+import { DraftsManager } from './DraftsManager';
 
 interface WordGeneratorProps {
   onSavedSuccess: (newWordsCount: number) => void;
@@ -32,12 +34,20 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [autoDraftMsg, setAutoDraftMsg] = useState<string | null>(null);
+
+  // Switch between AI Generator and Drafts collection
+  const [activeTab, setActiveTab] = useState<'generate' | 'drafts'>('generate');
+  const [draftsVersion, setDraftsVersion] = useState<number>(0);
 
   const [generatedResult, setGeneratedResult] = useState<{
     title: string;
     themeContext: string;
     words: any[];
   } | null>(null);
+
+  // Set of indices for selected words to save in the Word Bank (defaults to all selected)
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
   const beginnerTopics = [
     { id: 'daily life', title: 'Daily Life & Home', arabic: 'الحَيَاةُ اليَوْمِيَّة', note: 'Waking up, having breakfast, coffee, family life' },
@@ -79,6 +89,17 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
 
       const data = await res.json();
       setGeneratedResult(data);
+      if (data.words && Array.isArray(data.words)) {
+        setSelectedIndices(new Set(data.words.map((_: any, idx: number) => idx)));
+      }
+
+      // Bump draft version and show auto-save confirmation
+      setDraftsVersion(v => v + 1);
+      if (data.autoSavedToDraftCount > 0) {
+        setAutoDraftMsg(`${data.autoSavedToDraftCount} unique words automatically saved to your Drafts collection!`);
+      } else {
+        setAutoDraftMsg(null);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Error communicating with AI tutor');
@@ -87,8 +108,35 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
     }
   };
 
+  const toggleWordSelection = (index: number) => {
+    setSelectedIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!generatedResult || !generatedResult.words.length) return;
+    if (selectedIndices.size === generatedResult.words.length) {
+      setSelectedIndices(new Set());
+    } else {
+      setSelectedIndices(new Set(generatedResult.words.map((_, i) => i)));
+    }
+  };
+
   const handleSaveToLibrary = async () => {
     if (!generatedResult || !generatedResult.words.length) return;
+    const wordsToSave = generatedResult.words.filter((_, idx) => selectedIndices.has(idx));
+    if (wordsToSave.length === 0) {
+      setError('Please select at least one word to save to your Word Bank.');
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
 
@@ -103,7 +151,7 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
           themeContext: generatedResult.themeContext,
           topic: effectiveTopic,
           difficulty,
-          words: generatedResult.words,
+          words: wordsToSave,
         }),
       });
 
@@ -113,7 +161,7 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
       }
 
       const data = await res.json();
-      setSaveSuccessMsg(data.message || 'Words successfully added to your Word Bank!');
+      setSaveSuccessMsg(data.message || `${wordsToSave.length} words successfully added to your Word Bank!`);
       onSavedSuccess(data.savedCount);
     } catch (err: any) {
       console.error(err);
@@ -124,21 +172,82 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
   };
 
   return (
-    <div className="space-y-12 animate-fadeIn max-w-4xl mx-auto">
-      {/* Friendly Header */}
-      <div className="space-y-2 border-b border-[var(--border-subtle)] pb-6">
-        <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)]">
-          AI Word Generator
+    <div className="space-y-8 animate-fadeIn w-full max-w-7xl mx-auto">
+      {/* Friendly Header with View Tabs */}
+      <div className="space-y-4 border-b border-[var(--border-subtle)] pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)]">
+              AI Vocabulary & Drafts
+            </div>
+            <h1 className="editorial-title text-3xl sm:text-4xl font-semibold text-[var(--ink-primary)]">
+              {activeTab === 'generate' ? 'What would you like to learn today?' : 'Your Draft Words Collection'}
+            </h1>
+          </div>
+
+          {/* Navigation Pill Switcher */}
+          <div className="flex items-center p-1 bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-xl self-start sm:self-auto shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab('generate')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === 'generate'
+                  ? 'bg-[var(--accent-ochre)] text-[#121316] shadow-sm'
+                  : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Generate Words</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('drafts')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === 'drafts'
+                  ? 'bg-[var(--accent-ochre)] text-[#121316] shadow-sm'
+                  : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+              }`}
+            >
+              <Inbox className="w-3.5 h-3.5" />
+              <span>Drafts Collection</span>
+            </button>
+          </div>
         </div>
-        <h1 className="editorial-title text-3xl sm:text-4xl font-semibold text-[var(--ink-primary)]">
-          What would you like to learn today?
-        </h1>
+
         <p className="text-sm text-[var(--ink-secondary)] max-w-2xl leading-relaxed">
-          Pick a situation or topic below. The AI will teach you useful words that connect together in a natural story, complete with audio, vowel marks (harakat), and easy examples.
+          {activeTab === 'generate'
+            ? 'Pick a situation or topic below. The AI will teach you useful words that connect together in a natural story, complete with audio, vowel marks (harakat), and easy examples. Unique words are also auto-saved to Drafts so you never lose them!'
+            : 'Every word generated by the AI is automatically preserved in your Drafts database. Review, select, and save any words directly to your active Word Bank at your own pace.'}
         </p>
+
+        {autoDraftMsg && activeTab === 'generate' && (
+          <div className="p-3 bg-[var(--accent-cypress)]/10 border border-[var(--accent-cypress)]/30 rounded-xl text-xs text-[var(--accent-cypress)] flex items-center justify-between gap-2 animate-fadeIn">
+            <span>✓ {autoDraftMsg}</span>
+            <button
+              type="button"
+              onClick={() => setActiveTab('drafts')}
+              className="font-bold underline hover:opacity-80 flex items-center gap-1 cursor-pointer"
+            >
+              <Inbox className="w-3.5 h-3.5" /> View Drafts
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Render Drafts Manager if activeTab === 'drafts' */}
+      {activeTab === 'drafts' && (
+        <DraftsManager
+          onSavedToWordBank={(count) => {
+            onSavedSuccess(count);
+          }}
+          onNavigateToStudy={onNavigateToStudy}
+          draftsVersion={draftsVersion}
+        />
+      )}
+
       {/* Generator Form */}
+      {activeTab === 'generate' && (
+      <>
       <form onSubmit={handleGenerate} className="space-y-8">
         {/* Step 1: Choose a topic */}
         <div className="space-y-3">
@@ -360,8 +469,8 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
               <button
                 type="button"
                 onClick={handleSaveToLibrary}
-                disabled={isSaving || !!saveSuccessMsg}
-                className="btn-ochre py-2.5 px-5 rounded-lg text-xs font-semibold flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-60"
+                disabled={isSaving || !!saveSuccessMsg || selectedIndices.size === 0}
+                className="btn-ochre py-2.5 px-5 rounded-lg text-xs font-semibold flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-50"
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -370,7 +479,15 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
                 ) : (
                   <BookmarkPlus className="w-4 h-4" />
                 )}
-                <span>{saveSuccessMsg ? 'Saved to Word Bank!' : 'Save Words to Word Bank'}</span>
+                <span>
+                  {saveSuccessMsg
+                    ? 'Saved to Word Bank!'
+                    : selectedIndices.size === 0
+                    ? 'Select words to save'
+                    : selectedIndices.size === generatedResult.words.length
+                    ? `Save All ${generatedResult.words.length} Words`
+                    : `Save Selected (${selectedIndices.size}/${generatedResult.words.length})`}
+                </span>
               </button>
             </div>
 
@@ -391,35 +508,71 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
             )}
           </div>
 
-          {/* Words List */}
+          {/* Words List Header with Select All */}
           <div className="space-y-4">
-            <div className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-muted)]">
-              Your {generatedResult.words.length} New Words
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-2">
+              <div className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-muted)]">
+                Generated Vocabulary ({selectedIndices.size} of {generatedResult.words.length} selected)
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="text-xs font-medium text-[var(--accent-ochre)] hover:underline flex items-center gap-1.5 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    readOnly
+                    checked={selectedIndices.size === generatedResult.words.length && generatedResult.words.length > 0}
+                    className="h-3.5 w-3.5 rounded accent-[var(--accent-ochre)] cursor-pointer pointer-events-none"
+                  />
+                  <span>
+                    {selectedIndices.size === generatedResult.words.length ? 'Deselect All' : 'Select All'}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            <div className="divide-y divide-[var(--border-subtle)] border-t border-b border-[var(--border-subtle)]">
-              {generatedResult.words.map((w, idx) => (
-                <div
-                  key={idx}
-                  className="py-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-start hover:bg-[var(--accent-ochre-dim)]/40 px-3 rounded-lg transition-colors"
-                >
-                  {/* Arabic Word + Audio Button */}
-                  <div className="md:col-span-4 space-y-1">
-                    <div className="flex items-center gap-3">
-                      <AudioPronounceButton arabicText={w.arabic} size="sm" />
-                      <span className="font-arabic text-3xl font-bold text-[var(--accent-ochre)] harakat-text">
-                        {w.arabic}
-                      </span>
-                    </div>
-                    <div className="text-xs font-mono text-[var(--ink-muted)] pl-9">
-                      {w.transliteration}
-                    </div>
-                    {w.root && (
-                      <div className="text-xs text-[var(--ink-muted)] pl-9">
-                        3-Letter Root: <strong className="text-[var(--ink-secondary)]">{w.root}</strong>
+            <div className="divide-y divide-[var(--border-subtle)] border-b border-[var(--border-subtle)]">
+              {generatedResult.words.map((w, idx) => {
+                const isChecked = selectedIndices.has(idx);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => toggleWordSelection(idx)}
+                    className={`py-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-start px-3 rounded-xl transition-all cursor-pointer ${
+                      isChecked
+                        ? 'bg-[var(--accent-ochre-dim)]/30 border border-[var(--accent-ochre)]/30 my-1.5'
+                        : 'hover:bg-[var(--bg-surface-elevated)]/50 opacity-60'
+                    }`}
+                  >
+                    {/* Arabic Word + Checkbox + Audio Button */}
+                    <div className="md:col-span-4 space-y-1">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleWordSelection(idx)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded accent-[var(--accent-ochre)] cursor-pointer shrink-0"
+                          aria-label={`Select word ${w.arabic}`}
+                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AudioPronounceButton arabicText={w.arabic} size="sm" />
+                        </div>
+                        <span className="font-arabic text-3xl font-bold text-[var(--accent-ochre)] harakat-text">
+                          {w.arabic}
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      <div className="text-xs font-mono text-[var(--ink-muted)] pl-16">
+                        {w.transliteration}
+                      </div>
+                      {w.root && (
+                        <div className="text-xs text-[var(--ink-muted)] pl-16">
+                          3-Letter Root: <strong className="text-[var(--ink-secondary)]">{w.root}</strong>
+                        </div>
+                      )}
+                    </div>
 
                   {/* Meaning & Verb Forms */}
                   <div className="md:col-span-3 space-y-1">
@@ -439,37 +592,42 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
                     )}
                   </div>
 
-                  {/* Sentence Example in Context */}
-                  <div className="md:col-span-5 space-y-1.5 pl-0 md:pl-4 border-l-0 md:border-l border-[var(--border-subtle)]">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-semibold text-[var(--ink-muted)]">
-                        Example Sentence:
-                      </span>
-                      <AudioPronounceButton arabicText={w.exampleArabic} size="sm" />
+                    {/* Sentence Example in Context */}
+                    <div className="md:col-span-5 space-y-1.5 pl-0 md:pl-4 border-l-0 md:border-l border-[var(--border-subtle)]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] font-semibold text-[var(--ink-muted)]">
+                          Example Sentence:
+                        </span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AudioPronounceButton arabicText={w.exampleArabic} size="sm" />
+                        </div>
+                      </div>
+                      <p className="font-arabic text-lg font-semibold text-[var(--ink-primary)] harakat-text text-right leading-loose">
+                        {w.exampleArabic}
+                      </p>
+                      {w.exampleTransliteration && (
+                        <p className="text-xs text-[var(--ink-muted)] font-mono">
+                          {w.exampleTransliteration}
+                        </p>
+                      )}
+                      <p className="text-xs text-[var(--ink-secondary)] italic">
+                        "{w.exampleEnglish}"
+                      </p>
+                      {w.explanation && (
+                        <p className="text-xs text-[var(--ink-muted)] pt-1 flex items-start gap-1">
+                          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--accent-ochre)]" />
+                          <span>{w.explanation}</span>
+                        </p>
+                      )}
                     </div>
-                    <p className="font-arabic text-lg font-semibold text-[var(--ink-primary)] harakat-text text-right leading-loose">
-                      {w.exampleArabic}
-                    </p>
-                    {w.exampleTransliteration && (
-                      <p className="text-xs text-[var(--ink-muted)] font-mono">
-                        {w.exampleTransliteration}
-                      </p>
-                    )}
-                    <p className="text-xs text-[var(--ink-secondary)] italic">
-                      "{w.exampleEnglish}"
-                    </p>
-                    {w.explanation && (
-                      <p className="text-xs text-[var(--ink-muted)] pt-1 flex items-start gap-1">
-                        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--accent-ochre)]" />
-                        <span>{w.explanation}</span>
-                      </p>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
+      )}
+      </>
       )}
     </div>
   );

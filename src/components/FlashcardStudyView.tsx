@@ -6,7 +6,14 @@ import {
   ChevronRight,
   RotateCw,
   Shuffle,
-  Volume2
+  Volume2,
+  Layers,
+  Keyboard,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  BookmarkCheck,
+  AlertCircle
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
@@ -71,7 +78,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     const currentWord = words[currentIndex];
 
     try {
-      await fetch(`/api/words/${currentWord.id}`, {
+      const res = await fetch(`/api/words/${currentWord.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,6 +86,14 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
           recordSession: true,
         }),
       });
+
+      if (res.ok) {
+        const updatedWord: Word = await res.json();
+        // Update the word in local words array so Mastered / Learning / Tricky recalculate reactively
+        setWords((prevWords) =>
+          prevWords.map((w) => (w.id === updatedWord.id ? { ...w, ...updatedWord } : w))
+        );
+      }
 
       setStudiedCount((prev) => prev + 1);
 
@@ -101,7 +116,42 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     }
   };
 
+  // Desktop keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        setIsFlipped((prev) => !prev);
+      } else if (isFlipped) {
+        if (e.key === '1') handleCardRating(1);
+        else if (e.key === '2') handleCardRating(2);
+        else if (e.key === '3') handleCardRating(3);
+        else if (e.key === '4') handleCardRating(4);
+      } else {
+        if (e.key === 'ArrowRight' || e.key === 'Enter') {
+          setIsFlipped(true);
+        } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+          setCurrentIndex((prev) => prev - 1);
+          setIsFlipped(false);
+        } else if (e.key.toLowerCase() === 's') {
+          handleShuffle();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFlipped, currentIndex, words]);
+
   const currentWord = words[currentIndex];
+  const masteredCount = words.filter((w) => w.memoryStatus === 'mastered').length;
+  const learningCount = words.filter((w) => w.memoryStatus === 'learning').length;
+  const strugglingCount = words.filter((w) => w.memoryStatus === 'struggling').length;
+  const progressPercent = words.length > 0 ? Math.round(((currentIndex + 1) / words.length) * 100) : 0;
 
   if (loading) {
     return (
@@ -140,7 +190,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
 
   if (isCompleted) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-16 px-8 border border-[var(--accent-ochre)]/30 rounded-2xl bg-[var(--bg-surface)] space-y-6 animate-fadeIn">
+      <div className="max-w-3xl mx-auto text-center py-16 px-8 border border-[var(--accent-ochre)]/30 rounded-2xl bg-[var(--bg-surface)] space-y-6 animate-fadeIn">
         <div className="space-y-2">
           <span className="font-arabic text-5xl text-[var(--accent-ochre)] font-bold">
             أَحْسَنْتَ ! مُمْتَاز
@@ -180,7 +230,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 animate-fadeIn px-2 sm:px-4">
+    <div className="w-full space-y-6 animate-fadeIn">
       {/* Top Filter & Deck Count Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4 text-xs">
         <div className="flex items-center gap-3 sm:gap-4 font-medium">
@@ -212,205 +262,352 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
           </span>
           <button
             onClick={handleShuffle}
-            className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre-dim)] transition cursor-pointer"
-            title="Shuffle card order"
+            className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre-dim)] transition cursor-pointer flex items-center gap-1.5"
+            title="Shuffle card order (S)"
           >
             <Shuffle className="w-4 h-4" />
+            <span className="hidden sm:inline text-xs font-medium">Shuffle</span>
           </button>
         </div>
       </div>
 
-      {/* Large Adaptive 3D Flip Flashcard */}
-      <div
-        className="w-full min-h-[440px] sm:min-h-[500px] lg:min-h-[540px] perspective-1000 cursor-pointer select-none"
-        onClick={() => setIsFlipped(!isFlipped)}
-      >
-        <div
-          className={`relative w-full h-full min-h-[440px] sm:min-h-[500px] lg:min-h-[540px] rounded-3xl transition-transform duration-500 transform-style-3d ${
-            isFlipped ? 'rotate-y-180' : ''
-          }`}
-        >
-          {/* ================= FRONT SIDE ================= */}
-          <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl p-6 sm:p-10 lg:p-14 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-2xl">
-            {/* Top Bar on Front */}
-            <div className="flex justify-between items-center">
-              <span className="px-3.5 py-1 rounded-full font-semibold bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] uppercase tracking-wider text-xs">
-                {currentWord.wordType || 'Vocabulary'}
-              </span>
-              <AudioPronounceButton arabicText={currentWord.arabic} size="lg" />
-            </div>
-
-            {/* Center: Big Prominent Arabic Word */}
-            <div className="flex flex-col items-center justify-center text-center py-6 sm:py-10 my-auto w-full space-y-4">
-              <div
-                style={{ fontSize: '64px' }}
-                className="font-arabic font-bold text-[var(--accent-ochre)] harakat-text leading-relaxed text-center mx-auto"
-              >
-                {currentWord.arabic}
-              </div>
-              <p className="text-sm sm:text-base text-[var(--ink-muted)] font-serif italic text-center">
-                Tap anywhere to flip card and reveal English translation
-              </p>
-            </div>
-
-            {/* Bottom Bar on Front */}
-            <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs sm:text-sm text-[var(--ink-muted)]">
-              <span>
-                Status: <strong className="text-[var(--ink-secondary)] capitalize font-semibold">{currentWord.memoryStatus === 'learning' ? 'Currently Learning' : currentWord.memoryStatus === 'struggling' ? 'Needs Practice' : currentWord.memoryStatus === 'mastered' ? 'Mastered' : 'New Word'}</strong>
-              </span>
-              <span className="text-[var(--accent-ochre)] font-semibold flex items-center gap-1.5">
-                Show Answer <RotateCw className="w-4 h-4" />
-              </span>
-            </div>
-          </div>
-
-          {/* ================= BACK SIDE ================= */}
-          <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl p-6 sm:p-10 lg:p-14 flex flex-col justify-between bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/50 shadow-2xl overflow-y-auto">
-            {/* Top Bar on Back */}
-            <div className="flex justify-between items-center">
-              <span className="px-3.5 py-1 rounded-full font-semibold bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] uppercase tracking-wider text-xs">
-                {currentWord.wordType || 'Vocabulary'}
-              </span>
-              <AudioPronounceButton arabicText={currentWord.arabic} size="lg" />
-            </div>
-
-            {/* Center Content: Centered Big Arabic + Large English Meaning */}
-            <div className="flex flex-col items-center justify-center text-center py-4 sm:py-6 space-y-4 my-auto max-w-2xl mx-auto w-full">
-              {/* Arabic + Transliteration */}
-              <div className="space-y-1 w-full text-center">
-                <div
-                  style={{ fontSize: '64px' }}
-                  className="font-arabic font-bold text-[var(--accent-ochre)] harakat-text leading-relaxed text-center mx-auto"
-                >
-                  {currentWord.arabic}
+      {/* Main Study Arena: 2-Column Desktop Layout */}
+      <div className="study-arena-grid">
+        {/* Left Column (Flashcard + Action Controls) */}
+        <div className="study-arena-main">
+          {/* Centered Flashcard & Action Container */}
+          <div className="w-full max-w-4xl mx-auto space-y-6">
+            {/* Adaptive 3D Flip Flashcard */}
+            <div
+              className="w-full min-h-[460px] sm:min-h-[490px] lg:min-h-[510px] perspective-1000 cursor-pointer select-none"
+              onClick={() => setIsFlipped(!isFlipped)}
+            >
+            <div
+              className={`relative w-full h-full min-h-[460px] sm:min-h-[500px] lg:min-h-[520px] rounded-3xl transition-transform duration-500 transform-style-3d ${
+                isFlipped ? 'rotate-y-180' : ''
+              }`}
+            >
+              {/* ================= FRONT SIDE ================= */}
+              <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl p-6 sm:p-10 lg:p-12 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xl overflow-hidden hover:border-[var(--accent-ochre)]/40 transition-colors">
+                {/* Top Bar on Front */}
+                <div className="flex justify-between items-center w-full">
+                  <span className="px-3.5 py-1 rounded-full font-semibold bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] uppercase tracking-wider text-xs">
+                    {currentWord.wordType || 'Vocabulary'}
+                  </span>
+                  <AudioPronounceButton arabicText={currentWord.arabic} size="lg" />
                 </div>
-                <div className="text-sm sm:text-base font-mono text-[var(--ink-muted)] text-center">
-                  {currentWord.transliteration}
+
+                {/* Center: Big Prominent Arabic Word */}
+                <div className="flex flex-col items-center justify-center text-center py-6 sm:py-10 my-auto w-full space-y-4">
+                  <div
+                    dir="rtl"
+                    style={{ fontSize: 'clamp(56px, 8vw, 88px)', textAlign: 'center' }}
+                    className="font-arabic font-bold text-[var(--accent-ochre)] harakat-text leading-snug text-center mx-auto w-full"
+                  >
+                    {currentWord.arabic}
+                  </div>
+                  <p className="text-sm sm:text-base text-[var(--ink-muted)] font-serif italic text-center">
+                    Click anywhere or press <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] text-xs font-mono">Space</kbd> to flip card
+                  </p>
                 </div>
-              </div>
 
-              {/* English Meaning (Large and prominent) */}
-              <div className="py-2">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-muted)] block mb-1">
-                  English Meaning
-                </span>
-                <span className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--ink-primary)] leading-tight">
-                  {currentWord.english}
-                </span>
-              </div>
-
-              {/* Present tense forms if verb */}
-              {currentWord.presentTenseI && (
-                <div className="p-3 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-sm text-[var(--ink-secondary)] inline-block">
-                  <span className="font-arabic text-xl text-[var(--accent-cypress)] font-semibold">
-                    أَنَا {currentWord.presentTenseI} • هُوَ {currentWord.presentTenseHe || '-'}
+                {/* Bottom Bar on Front */}
+                <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs sm:text-sm text-[var(--ink-muted)] w-full">
+                  <span>
+                    Status: <strong className="text-[var(--ink-secondary)] capitalize font-semibold">{currentWord.memoryStatus === 'learning' ? 'Currently Learning' : currentWord.memoryStatus === 'struggling' ? 'Needs Practice' : currentWord.memoryStatus === 'mastered' ? 'Mastered' : 'New Word'}</strong>
+                  </span>
+                  <span className="text-[var(--accent-ochre)] font-semibold flex items-center gap-1.5">
+                    Show Answer <RotateCw className="w-4 h-4" />
                   </span>
                 </div>
-              )}
+              </div>
 
-              {/* Centered Example Sentence with Listen Button */}
-              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2 text-center w-full">
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  <p className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-loose">
-                    {currentWord.exampleArabic}
-                  </p>
-                  <AudioPronounceButton
-                    arabicText={currentWord.exampleArabic}
-                    size="sm"
-                    label="Listen sentence"
-                    title="Listen to full example sentence"
-                  />
+              {/* ================= BACK SIDE ================= */}
+              <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/50 shadow-xl overflow-y-auto no-scrollbar">
+                {/* Top Bar on Back */}
+                <div className="flex justify-between items-center w-full">
+                  <div className="flex items-center gap-2.5">
+                    <span className="px-3.5 py-1 rounded-full font-semibold bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] uppercase tracking-wider text-xs">
+                      {currentWord.wordType || 'Vocabulary'}
+                    </span>
+                    {currentWord.root && (
+                      <span className="text-xs text-[var(--ink-muted)] hidden sm:inline-block">
+                        Root: <strong className="text-[var(--ink-secondary)] font-mono">{currentWord.root}</strong>
+                      </span>
+                    )}
+                  </div>
+                  <AudioPronounceButton arabicText={currentWord.arabic} size="lg" />
                 </div>
-                <p className="text-xs sm:text-sm text-[var(--ink-muted)] font-mono">{currentWord.exampleTransliteration}</p>
-                <p className="text-sm sm:text-base text-[var(--ink-secondary)] italic">"{currentWord.exampleEnglish}"</p>
+
+                {/* Center Content: Roomy Wide Layout */}
+                <div className="flex flex-col items-center justify-center text-center py-2 sm:py-3 space-y-3 sm:space-y-4 my-auto max-w-4xl mx-auto w-full">
+                  {/* Arabic + Transliteration */}
+                  <div className="space-y-1 w-full text-center">
+                    <div
+                      dir="rtl"
+                      style={{ fontSize: 'clamp(46px, 7vw, 70px)', textAlign: 'center' }}
+                      className="font-arabic font-bold text-[var(--accent-ochre)] harakat-text leading-snug text-center mx-auto w-full"
+                    >
+                      {currentWord.arabic}
+                    </div>
+                    <div className="text-sm sm:text-base font-mono text-[var(--ink-muted)] text-center tracking-wide">
+                      {currentWord.transliteration}
+                    </div>
+                  </div>
+
+                  {/* English Meaning (Large and prominent) */}
+                  <div className="py-0.5 text-center">
+                    <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-muted)] block mb-1">
+                      English Meaning
+                    </span>
+                    <span className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--ink-primary)] leading-tight text-center">
+                      {currentWord.english}
+                    </span>
+                  </div>
+
+                  {/* Present tense forms if verb */}
+                  {currentWord.presentTenseI && (
+                    <div className="px-4 py-1.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-xs sm:text-sm text-[var(--ink-secondary)] inline-flex items-center gap-2">
+                      <span className="text-[var(--ink-muted)] text-xs font-medium">Verb Conjugation:</span>
+                      <span dir="rtl" className="font-arabic text-lg sm:text-xl text-[var(--accent-cypress)] font-semibold harakat-text">
+                        أَنَا {currentWord.presentTenseI} • هُوَ {currentWord.presentTenseHe || '-'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Example Sentence with Audio */}
+                  {currentWord.exampleArabic && (
+                    <div className="pt-2.5 border-t border-[var(--border-subtle)] space-y-1.5 text-center w-full max-w-3xl mx-auto">
+                      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+                        <p
+                          dir="rtl"
+                          style={{ textAlign: 'center' }}
+                          className="font-arabic text-xl sm:text-2xl lg:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-center"
+                        >
+                          {currentWord.exampleArabic}
+                        </p>
+                        <AudioPronounceButton
+                          arabicText={currentWord.exampleArabic}
+                          size="sm"
+                          label="Listen sentence"
+                          title="Listen to full example sentence"
+                        />
+                      </div>
+                      {currentWord.exampleTransliteration && (
+                        <p className="text-xs sm:text-sm text-[var(--ink-muted)] font-mono">{currentWord.exampleTransliteration}</p>
+                      )}
+                      {currentWord.exampleEnglish && (
+                        <p className="text-xs sm:text-sm text-[var(--ink-secondary)] italic font-serif">"{currentWord.exampleEnglish}"</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Note */}
+                <div className="text-xs font-semibold text-[var(--ink-muted)] text-center pt-2 border-t border-[var(--border-subtle)] w-full">
+                  How well did you remember this word?
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Bottom Note */}
-            <div className="text-xs sm:text-sm font-semibold text-[var(--ink-muted)] text-center pt-3 border-t border-[var(--border-subtle)]">
-              How well did you remember this word?
+          {/* Action / Response Controls */}
+          {isFlipped ? (
+            <div className="space-y-2.5 animate-fadeIn w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                {/* Forgot */}
+                <button
+                  onClick={() => handleCardRating(1)}
+                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                >
+                  <span className="block text-base sm:text-lg font-bold">Again</span>
+                  <span className="text-xs opacity-80 mt-1 block">Forgot it (1)</span>
+                </button>
+
+                {/* Hard */}
+                <button
+                  onClick={() => handleCardRating(2)}
+                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                >
+                  <span className="block text-base sm:text-lg font-bold">Hard</span>
+                  <span className="text-xs opacity-80 mt-1 block">Partly knew (2)</span>
+                </button>
+
+                {/* Good */}
+                <button
+                  onClick={() => handleCardRating(3)}
+                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                >
+                  <span className="block text-base sm:text-lg font-bold">Good</span>
+                  <span className="text-xs opacity-80 mt-1 block">Remembered (3)</span>
+                </button>
+
+                {/* Easy */}
+                <button
+                  onClick={() => handleCardRating(4)}
+                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)]/10 text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                >
+                  <span className="block text-base sm:text-lg font-bold">Easy</span>
+                  <span className="text-xs opacity-80 mt-1 block">Knew well (4)</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center w-full text-sm pt-1">
+              <button
+                onClick={() => {
+                  if (currentIndex > 0) {
+                    setCurrentIndex((prev) => prev - 1);
+                    setIsFlipped(false);
+                  }
+                }}
+                disabled={currentIndex === 0}
+                className="btn-quiet px-5 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer font-semibold"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+
+              <button
+                onClick={() => setIsFlipped(true)}
+                className="btn-ochre px-8 py-3 rounded-xl text-sm font-bold cursor-pointer shadow-md transition transform hover:-translate-y-0.5 flex items-center gap-2"
+              >
+                Reveal Answer <span className="hidden sm:inline font-mono text-xs opacity-80">[Space]</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (currentIndex + 1 < words.length) {
+                    setCurrentIndex((prev) => prev + 1);
+                    setIsFlipped(false);
+                  }
+                }}
+                disabled={currentIndex + 1 >= words.length}
+                className="btn-quiet px-5 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer font-semibold"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          </div>
+        </div>
+
+        {/* Right Column (Desktop Companion Sidebar) */}
+        <div className="hidden lg:flex flex-col space-y-5 study-arena-sidebar">
+          {/* 1. Deck Session Progress Panel */}
+          <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)] flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" /> Session Progress
+              </span>
+              <span className="text-xs font-mono font-bold text-[var(--ink-secondary)]">
+                {currentIndex + 1} / {words.length}
+              </span>
+            </div>
+
+            {/* Visual Progress Bar */}
+            <div className="w-full h-2.5 bg-[var(--border-subtle)] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[var(--accent-ochre)] rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            {/* Mastery Status Breakdown Chips */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-subtle)] text-center text-xs">
+              <div className="py-2 px-1.5 rounded-xl bg-[var(--accent-cypress)]/10 border border-[var(--accent-cypress)]/20 flex flex-col items-center justify-center">
+                <span className="block font-bold text-sm text-[var(--accent-cypress)]">{masteredCount}</span>
+                <span className="text-[10px] text-[var(--ink-muted)] whitespace-nowrap">Mastered</span>
+              </div>
+              <div className="py-2 px-1.5 rounded-xl bg-[var(--accent-ochre-dim)] border border-[var(--accent-ochre)]/20 flex flex-col items-center justify-center">
+                <span className="block font-bold text-sm text-[var(--accent-ochre)]">{learningCount}</span>
+                <span className="text-[10px] text-[var(--ink-muted)] whitespace-nowrap">Learning</span>
+              </div>
+              <div className="py-2 px-1.5 rounded-xl bg-[var(--accent-terracotta)]/10 border border-[var(--accent-terracotta)]/20 flex flex-col items-center justify-center">
+                <span className="block font-bold text-sm text-[var(--accent-terracotta)]">{strugglingCount}</span>
+                <span className="text-[10px] text-[var(--ink-muted)] whitespace-nowrap">Tricky</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Deck Queue & Card Navigator */}
+          <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-secondary)] flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-[var(--accent-ochre)]" /> Deck Queue
+              </span>
+              <span className="text-[11px] text-[var(--ink-muted)]">Click card to jump</span>
+            </div>
+
+            <div className="max-h-[260px] overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+              {words.map((w, idx) => {
+                const isActive = idx === currentIndex;
+                return (
+                  <div
+                    key={w.id || idx}
+                    onClick={() => {
+                      setCurrentIndex(idx);
+                      setIsFlipped(false);
+                    }}
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 text-xs ${
+                      isActive
+                        ? 'border-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] text-[var(--ink-primary)] font-semibold shadow-xs'
+                        : 'border-transparent hover:bg-[var(--bg-surface-elevated)] text-[var(--ink-secondary)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate min-w-0">
+                      <span className="w-4 text-center font-mono text-[10px] text-[var(--ink-muted)] shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span dir="rtl" className="font-arabic text-sm text-[var(--accent-ochre)] harakat-text font-bold shrink-0">
+                        {w.arabic}
+                      </span>
+                      <span className="truncate text-xs opacity-90">{w.english}</span>
+                    </div>
+
+                    <span className="text-[10px] uppercase font-semibold text-[var(--ink-muted)] px-1.5 py-0.5 rounded bg-[var(--border-subtle)] shrink-0 whitespace-nowrap">
+                      {w.wordType || 'Word'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Desktop Keyboard Shortcuts Guide */}
+          <div className="p-4 rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-2.5 text-xs text-[var(--ink-muted)]">
+            <div className="flex items-center gap-1.5 font-semibold text-[var(--ink-primary)]">
+              <Keyboard className="w-4 h-4 text-[var(--accent-ochre)]" />
+              <span>Desktop Keyboard Shortcuts</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Flip Card</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">Space</kbd>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Forgot</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">1</kbd>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Hard</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">2</kbd>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Good</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">3</kbd>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Easy</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">4</kbd>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] gap-1">
+                <span className="truncate">Shuffle</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[var(--border-subtle)] font-mono text-[10px] shrink-0">S</kbd>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Action / Response Controls */}
-      {isFlipped ? (
-        <div className="space-y-2.5 animate-fadeIn max-w-2xl mx-auto">
-          <div className="grid grid-cols-4 gap-3">
-            {/* Forgot */}
-            <button
-              onClick={() => handleCardRating(1)}
-              className="p-3.5 sm:p-4 rounded-2xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5"
-            >
-              <span className="block text-sm sm:text-base font-bold">Again</span>
-              <span className="text-xs opacity-80 mt-0.5 block">Forgot it</span>
-            </button>
-
-            {/* Hard */}
-            <button
-              onClick={() => handleCardRating(2)}
-              className="p-3.5 sm:p-4 rounded-2xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5"
-            >
-              <span className="block text-sm sm:text-base font-bold">Hard</span>
-              <span className="text-xs opacity-80 mt-0.5 block">Partly knew</span>
-            </button>
-
-            {/* Good */}
-            <button
-              onClick={() => handleCardRating(3)}
-              className="p-3.5 sm:p-4 rounded-2xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5"
-            >
-              <span className="block text-sm sm:text-base font-bold">Good</span>
-              <span className="text-xs opacity-80 mt-0.5 block">Remembered</span>
-            </button>
-
-            {/* Easy */}
-            <button
-              onClick={() => handleCardRating(4)}
-              className="p-3.5 sm:p-4 rounded-2xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5"
-            >
-              <span className="block text-sm sm:text-base font-bold">Easy</span>
-              <span className="text-xs opacity-80 mt-0.5 block">Knew well</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex justify-between items-center max-w-2xl mx-auto text-sm pt-1">
-          <button
-            onClick={() => {
-              if (currentIndex > 0) {
-                setCurrentIndex((prev) => prev - 1);
-                setIsFlipped(false);
-              }
-            }}
-            disabled={currentIndex === 0}
-            className="btn-quiet px-5 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer font-semibold"
-          >
-            <ChevronLeft className="w-4 h-4" /> Previous
-          </button>
-
-          <button
-            onClick={() => setIsFlipped(true)}
-            className="btn-ochre px-8 py-3 rounded-xl text-sm font-bold cursor-pointer shadow-md transition transform hover:-translate-y-0.5"
-          >
-            Reveal Answer
-          </button>
-
-          <button
-            onClick={() => {
-              if (currentIndex + 1 < words.length) {
-                setCurrentIndex((prev) => prev + 1);
-                setIsFlipped(false);
-              }
-            }}
-            disabled={currentIndex + 1 >= words.length}
-            className="btn-quiet px-5 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer font-semibold"
-          >
-            Next <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

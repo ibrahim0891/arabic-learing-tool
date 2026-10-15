@@ -185,7 +185,7 @@ export const TestGeneratorView: React.FC<TestGeneratorProps> = ({
   // 1. RESULTS VIEW
   if (quizResult) {
     return (
-      <div className="max-w-3xl mx-auto space-y-10 animate-fadeIn">
+      <div className="max-w-4xl mx-auto space-y-10 animate-fadeIn">
         <div className="border-b border-[var(--border-subtle)] pb-6 space-y-3">
           <span className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)]">
             Quiz Completed!
@@ -274,7 +274,7 @@ export const TestGeneratorView: React.FC<TestGeneratorProps> = ({
       : !!userAnswers[currentQ.id];
 
     return (
-      <div className="max-w-2xl mx-auto space-y-8 animate-fadeIn">
+      <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
         <div className="flex justify-between items-baseline border-b border-[var(--border-subtle)] pb-3 text-xs">
           <span className="font-semibold text-[var(--ink-muted)]">
             Question {currentQIndex + 1} of {questions.length}
@@ -419,7 +419,7 @@ export const TestGeneratorView: React.FC<TestGeneratorProps> = ({
 
   // 3. QUIZ SETUP
   return (
-    <div className="max-w-3xl mx-auto space-y-10 animate-fadeIn">
+    <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
       <div className="space-y-2 border-b border-[var(--border-subtle)] pb-6">
         <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)]">
           Quiz Time

@@ -98,3 +98,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create word' }, { status: 500 });
   }
 }
+
+// DELETE /api/words - Batch delete words
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { ids } = body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
+    }
+    await dataStore.deleteWords(ids);
+    return NextResponse.json({ success: true, count: ids.length });
+  } catch (error) {
+    console.error('Error deleting words:', error);
+    return NextResponse.json({ error: 'Failed to delete words' }, { status: 500 });
+  }
+}
+

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { StatsProvider } from '@/context/StatsContext';
+import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: 'Fasīh (فَصِيح) - AI-Powered Arabic Vocabulary Tutor',
@@ -17,7 +19,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body>{children}</body>
+      <body>
+        <StatsProvider>
+          <AppShell>{children}</AppShell>
+        </StatsProvider>
+      </body>
     </html>
   );
 }

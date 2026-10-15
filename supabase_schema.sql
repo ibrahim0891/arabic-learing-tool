@@ -69,9 +69,32 @@ CREATE TABLE IF NOT EXISTS public.test_history (
   tested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 5. Draft Words (Auto-saved generated words collection to review/select later)
+CREATE TABLE IF NOT EXISTS public.draft_words (
+  id TEXT PRIMARY KEY,
+  arabic TEXT NOT NULL,
+  transliteration TEXT NOT NULL,
+  english TEXT NOT NULL,
+  word_type TEXT NOT NULL DEFAULT 'noun',
+  present_tense_i TEXT,
+  present_tense_he TEXT,
+  root TEXT,
+  example_arabic TEXT NOT NULL,
+  example_transliteration TEXT NOT NULL,
+  example_english TEXT NOT NULL,
+  explanation TEXT,
+  topic TEXT NOT NULL DEFAULT 'daily life',
+  difficulty TEXT NOT NULL DEFAULT 'beginner',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source_topic TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_draft_words_arabic ON public.draft_words(arabic);
+
 -- Enable Row Level Security (RLS) with open public access policies for anonymous/dev usage
 ALTER TABLE public.word_sets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.words ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.draft_words ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.study_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.test_history ENABLE ROW LEVEL SECURITY;
 
@@ -84,6 +107,11 @@ CREATE POLICY "Allow public read access on words" ON public.words FOR SELECT USI
 CREATE POLICY "Allow public insert access on words" ON public.words FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access on words" ON public.words FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete access on words" ON public.words FOR DELETE USING (true);
+
+CREATE POLICY "Allow public read access on draft_words" ON public.draft_words FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on draft_words" ON public.draft_words FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on draft_words" ON public.draft_words FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on draft_words" ON public.draft_words FOR DELETE USING (true);
 
 CREATE POLICY "Allow public read access on study_sessions" ON public.study_sessions FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access on study_sessions" ON public.study_sessions FOR INSERT WITH CHECK (true);
