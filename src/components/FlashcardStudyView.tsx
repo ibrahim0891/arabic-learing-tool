@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
+import { Button } from './ui/Button';
 import confetti from 'canvas-confetti';
 
 interface FlashcardStudyProps {
@@ -467,12 +468,14 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              <button
+              <Button
                 onClick={() => setIsFlipped(true)}
-                className="btn-ochre px-8 py-3 rounded-xl text-sm font-bold cursor-pointer shadow-md transition transform hover:-translate-y-0.5 flex items-center gap-2"
+                variant="primary"
+                size="md"
+                className="px-8 py-3 text-sm font-bold shadow-md"
               >
                 Reveal Answer <span className="hidden sm:inline font-mono text-xs opacity-80">[Space]</span>
-              </button>
+              </Button>
 
               <button
                 onClick={() => {

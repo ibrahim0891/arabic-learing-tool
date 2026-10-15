@@ -17,6 +17,7 @@ import {
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { WordExamplesSheet } from './WordExamplesSheet';
+import { Button } from './ui/Button';
 
 interface VocabularyLibraryProps {
   onWordCountChange?: () => void;
@@ -239,12 +240,14 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
           </p>
         </div>
 
-        <button
+        <Button
           onClick={handleOpenAdd}
-          className="btn-ochre px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+          variant="primary"
+          size="sm"
+          leftIcon={<Plus className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" /> Add Word Manually
-        </button>
+          Add Word Manually
+        </Button>
       </div>
 
       {/* Search Toolbar */}
@@ -652,21 +655,23 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
 
             {/* Modal Sticky Footer Actions */}
             <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setIsModalOpen(false)}
-                className="btn-quiet px-4 py-2 rounded-xl text-xs cursor-pointer"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="primary"
+                size="sm"
                 form="wordModalForm"
-                disabled={isSaving}
-                className="btn-ochre px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50"
+                isLoading={isSaving}
               >
-                {isSaving ? 'Saving...' : editingWord ? 'Save Changes' : 'Add to Word Bank'}
-              </button>
+                {editingWord ? 'Save Changes' : 'Add to Word Bank'}
+              </Button>
             </div>
           </div>
         </div>,

@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import db from './db';
-import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord } from './types';
+import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence } from './types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xqzkgespanhdzbudaeoz.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_aYl97LnIVJoQWLRslNWlWg_63YGRjK5';
@@ -58,13 +58,13 @@ export function mapSupabaseWordToModel(row: any): Word {
     arabic: row.arabic,
     transliteration: row.transliteration || '',
     english: row.english,
-    wordType: row.word_type || 'noun',
-    presentTenseI: row.present_tense_i,
-    presentTenseHe: row.present_tense_he,
+    wordType: row.word_type || row.wordType || 'noun',
+    presentTenseI: row.present_tense_i ?? row.presentTenseI,
+    presentTenseHe: row.present_tense_he ?? row.presentTenseHe,
     root: row.root,
-    exampleArabic: row.example_arabic,
-    exampleTransliteration: row.example_transliteration,
-    exampleEnglish: row.example_english,
+    exampleArabic: row.example_arabic ?? row.exampleArabic ?? '',
+    exampleTransliteration: row.example_transliteration ?? row.exampleTransliteration ?? '',
+    exampleEnglish: row.example_english ?? row.exampleEnglish ?? '',
     explanation: row.explanation || '',
     topic: row.topic || 'daily life',
     difficulty: row.difficulty || 'beginner',
@@ -667,5 +667,83 @@ export const dataStore = {
       db.prepare('DELETE FROM draft_words').run();
     } catch (_) {}
     return true;
+  },
+
+  // Get current daily sentence
+  async getDailySentence(): Promise<DailySentence | null> {
+    // 1. Try Supabase
+    try {
+      const { data, error } = await supabase
+        .from('daily_sentences')
+        .select('*')
+        .eq('id', 'current_daily_sentence')
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          arabic: data.arabic,
+          transliteration: data.transliteration || '',
+          english: data.english,
+          slotDate: data.slot_date || data.slotDate || '',
+          slotIndex: Number(data.slot_index ?? data.slotIndex ?? 0),
+          updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+        };
+      }
+    } catch (_) {}
+
+    // 2. Try SQLite
+    try {
+      const row = db.prepare('SELECT * FROM daily_sentences WHERE id = ?').get('current_daily_sentence') as any;
+      if (row) {
+        return {
+          id: row.id,
+          arabic: row.arabic,
+          transliteration: row.transliteration || '',
+          english: row.english,
+          slotDate: row.slotDate,
+          slotIndex: Number(row.slotIndex || 0),
+          updatedAt: row.updatedAt,
+        };
+      }
+    } catch (_) {}
+
+    return null;
+  },
+
+  // Set / Replace current daily sentence
+  async setDailySentence(sentence: DailySentence): Promise<DailySentence> {
+    // 1. Save to Supabase
+    try {
+      const payload = {
+        id: 'current_daily_sentence',
+        arabic: sentence.arabic,
+        transliteration: sentence.transliteration,
+        english: sentence.english,
+        slot_date: sentence.slotDate,
+        slot_index: sentence.slotIndex,
+        updated_at: sentence.updatedAt,
+      };
+      await supabase.from('daily_sentences').upsert([payload]);
+    } catch (_) {}
+
+    // 2. Save to SQLite
+    try {
+      db.prepare(`
+        INSERT OR REPLACE INTO daily_sentences (
+          id, arabic, transliteration, english, slotDate, slotIndex, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'current_daily_sentence',
+        sentence.arabic,
+        sentence.transliteration,
+        sentence.english,
+        sentence.slotDate,
+        sentence.slotIndex,
+        sentence.updatedAt
+      );
+    } catch (_) {}
+
+    return sentence;
   }
 };

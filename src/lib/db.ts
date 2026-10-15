@@ -111,6 +111,16 @@ function getDatabaseInstance() {
         FOREIGN KEY(sessionId) REFERENCES study_sessions(id) ON DELETE CASCADE,
         FOREIGN KEY(wordId) REFERENCES words(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS daily_sentences (
+        id TEXT PRIMARY KEY,
+        arabic TEXT NOT NULL,
+        transliteration TEXT NOT NULL,
+        english TEXT NOT NULL,
+        slotDate TEXT NOT NULL,
+        slotIndex INTEGER NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
     `);
 
     // Safe migration for existing SQLite files

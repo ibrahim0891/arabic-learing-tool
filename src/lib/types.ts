@@ -7,6 +7,36 @@ export interface ExampleSentence {
   createdAt?: string;
 }
 
+export interface DailySentence {
+  id: string; // 'current_daily_sentence'
+  arabic: string;
+  transliteration: string;
+  english: string;
+  slotDate: string; // YYYY-MM-DD
+  slotIndex: number; // 0 (morning/first) or 1 (afternoon/second)
+  updatedAt: string; // ISO string
+}
+
+export interface ChatMessage {
+  id: string;
+  speakerName: string;
+  speakerRole?: string; // e.g. "Customer", "Friend", "Taxi Driver"
+  arabic: string; // Full tashkeel in White Dialect
+  transliteration: string;
+  english: string;
+}
+
+export interface ConversationSession {
+  id: string;
+  title: string;
+  topic: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  speakerCount: number;
+  speakers: string[]; // ['Tariq', 'Layla']
+  messages: ChatMessage[];
+  createdAt: string;
+}
+
 export interface Word {
   id: string;
   arabic: string; // with full diacritics / harakat

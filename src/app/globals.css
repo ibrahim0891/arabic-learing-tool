@@ -119,21 +119,17 @@ body {
   margin-top: 0.6rem;
 }
 
-/* Explicit high-contrast text rules across both themes */
-[data-theme='light'] .text-white {
-  color: var(--ink-primary) !important;
+/* Explicit high-contrast text rules across both themes - exclude buttons and badges */
+[data-theme='light'] :not(button):not(.btn-ochre):not(.bg-\[var\(--accent-ochre\)\]):not(.bg-\[var\(--accent-cypress\)\]):not(.bg-\[var\(--accent-terracotta\)\]):not(.bg-red-600):not(.bg-emerald-600) > .text-white,
+[data-theme='light'] p.text-white,
+[data-theme='light'] span.text-white:not(button span):not([class*="bg-"] span) {
+  color: var(--ink-primary);
 }
-[data-theme='light'] .text-slate-200 {
-  color: var(--ink-primary) !important;
-}
-[data-theme='light'] .text-slate-300 {
-  color: var(--ink-secondary) !important;
-}
-[data-theme='light'] .text-slate-400 {
-  color: var(--ink-muted) !important;
-}
-[data-theme='light'] .text-slate-500 {
-  color: var(--ink-muted) !important;
+[data-theme='light'] button .text-white,
+[data-theme='light'] button.text-white,
+[data-theme='light'] .btn-ochre,
+[data-theme='light'] .bg-\[var\(--accent-ochre\)\].text-white {
+  color: #ffffff !important;
 }
 
 [data-theme='dark'] .text-white {
@@ -253,17 +249,29 @@ input::placeholder {
 
 /* Custom Editorial Button */
 .btn-ochre {
-  background-color: var(--accent-ochre);
-  color: #121316;
-  font-weight: 700;
+  background-color: #9a5d16;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
 }
 .btn-ochre:hover {
-  filter: brightness(1.1);
+  background-color: #834e10;
+  color: #ffffff !important;
+  filter: brightness(1.05);
   transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+.btn-ochre:active {
+  transform: translateY(0);
 }
 [data-theme='dark'] .btn-ochre {
-  color: #0f172a !important;
+  background-color: #c48227;
+  color: #ffffff !important;
+}
+[data-theme='dark'] .btn-ochre:hover {
+  background-color: #d89333;
+  color: #ffffff !important;
 }
 
 .btn-quiet {

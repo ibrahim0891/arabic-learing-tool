@@ -14,10 +14,12 @@ import {
   GraduationCap,
   Compass,
   CheckCircle2,
-  Volume2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { Word, ExampleSentence } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
+import { Button } from './ui/Button';
 
 interface WordExamplesSheetProps {
   word: Word;
@@ -42,6 +44,33 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
   const [isLoadingExamples, setIsLoadingExamples] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [currentWord, setCurrentWord] = useState<Word>(word);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  const handleDeleteExample = async (exampleId: string) => {
+    setIsDeletingId(exampleId);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/words/${currentWord.id}/examples?exampleId=${encodeURIComponent(exampleId)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete example');
+      }
+      const data = await res.json();
+      if (data.word) {
+        setCurrentWord(data.word);
+        if (onWordUpdated) onWordUpdated(data.word);
+      }
+      setConfirmDeleteId(null);
+    } catch (err: any) {
+      console.error('Delete example error:', err);
+      setErrorMsg(err?.message || 'Error deleting example');
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
 
   // Fetch the latest word data (including saved additionalExamples) whenever the sheet opens
   React.useEffect(() => {
@@ -85,18 +114,10 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
       })()
     : [];
 
-  const primaryExample: ExampleSentence = {
-    id: 'primary',
-    arabic: currentWord.exampleArabic,
-    transliteration: currentWord.exampleTransliteration,
-    english: currentWord.exampleEnglish,
-    scenario: 'Default Sentence',
-  };
-
-  const allExamples: ExampleSentence[] = [
-    primaryExample,
-    ...parsedAdditional,
-  ];
+  // The primary/default sentence with fallbacks to initial word prop
+  const defaultArabic = currentWord.exampleArabic || word.exampleArabic || '';
+  const defaultTransliteration = currentWord.exampleTransliteration || word.exampleTransliteration || '';
+  const defaultEnglish = currentWord.exampleEnglish || word.exampleEnglish || '';
 
   const scenarios = [
     { id: 'generic', label: 'Everyday / Generic', icon: Compass },
@@ -152,8 +173,8 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
       {/* Backdrop click to close */}
       <div className="fixed inset-0" onClick={onClose} />
 
-      {/* 3/4 Screen Width Side Sheet Panel */}
-      <div className="relative w-full max-w-full lg:w-3/4 h-full bg-[var(--bg-primary)] border-l border-[var(--border-strong)] shadow-2xl flex flex-col z-10 animate-fadeIn">
+      {/* 50% Screen Width Side Sheet Panel */}
+      <div className="relative w-full max-w-full md:w-1/2 h-full bg-[var(--bg-primary)] border-l border-[var(--border-strong)] shadow-2xl flex flex-col z-10 animate-fadeIn">
         
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
@@ -204,7 +225,7 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
                 </h3>
               </div>
               <span className="text-xs text-[var(--ink-muted)] font-mono">
-                {allExamples.length} {allExamples.length === 1 ? 'sentence' : 'sentences'} available
+                {1 + parsedAdditional.length} sentences available
               </span>
             </div>
 
@@ -218,19 +239,17 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
                   const Icon = sc.icon;
                   const isSelected = selectedScenario === sc.id;
                   return (
-                    <button
+                    <Button
                       key={sc.id}
                       type="button"
+                      variant="pill"
+                      size="sm"
+                      isActive={isSelected}
                       onClick={() => setSelectedScenario(sc.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition ${
-                        isSelected
-                          ? 'bg-[var(--accent-ochre)] text-[#121316] font-bold shadow-xs'
-                          : 'bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-                      }`}
+                      leftIcon={<Icon className="w-3.5 h-3.5" />}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{sc.label}</span>
-                    </button>
+                      {sc.label}
+                    </Button>
                   );
                 })}
               </div>
@@ -290,24 +309,17 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
                   <option value={5}>5 Sentences</option>
                 </select>
 
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="md"
                   onClick={handleGenerate}
-                  disabled={isGenerating}
-                  className="btn-ochre px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-sm"
+                  isLoading={isGenerating}
+                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                  className="shrink-0"
                 >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Generating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Generate</span>
-                    </>
-                  )}
-                </button>
+                  Generate
+                </Button>
               </div>
             </div>
 
@@ -322,54 +334,151 @@ export const WordExamplesSheet: React.FC<WordExamplesSheetProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-                Example Sentences ({allExamples.length})
+                Default Example Sentence
               </h4>
-              {isLoadingExamples && (
-                <span className="text-xs text-[var(--ink-muted)] flex items-center gap-1.5 font-mono">
-                  <Loader2 className="w-3 h-3 animate-spin text-[var(--accent-ochre)]" />
-                  Syncing examples...
-                </span>
-              )}
             </div>
 
-            <div className="space-y-3">
-              {allExamples.map((ex, idx) => (
-                <div
-                  key={ex.id || idx}
-                  className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 hover:border-[var(--accent-ochre)]/40 transition-colors shadow-xs"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <span className="text-[11px] font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full capitalize">
-                      {ex.scenario || 'General Example'}
-                    </span>
-                    <AudioPronounceButton
-                      arabicText={ex.arabic}
-                      size="sm"
-                      title="Pronounce Arabic sentence"
-                    />
-                  </div>
+            {/* Default Primary Sentence - Rendered Separately and Protected */}
+            <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/20 space-y-3 shadow-xs">
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-[11px] font-bold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full capitalize">
+                  Default Sentence (Main)
+                </span>
+                <AudioPronounceButton
+                  arabicText={defaultArabic}
+                  size="sm"
+                  title="Pronounce default sentence"
+                />
+              </div>
 
-                  {/* Arabic Sentence */}
-                  <p
-                    dir="rtl"
-                    className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right"
-                  >
-                    {ex.arabic}
-                  </p>
+              {/* Arabic Sentence */}
+              <p
+                dir="rtl"
+                className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right"
+              >
+                {defaultArabic}
+              </p>
 
-                  {/* Transliteration */}
-                  {ex.transliteration && (
-                    <p className="text-sm font-mono text-[var(--ink-secondary)] font-medium text-left leading-normal">
-                      {ex.transliteration}
-                    </p>
-                  )}
+              {/* Transliteration */}
+              {defaultTransliteration && (
+                <p className="text-sm font-mono text-[var(--ink-secondary)] font-medium text-left leading-normal">
+                  {defaultTransliteration}
+                </p>
+              )}
 
-                  {/* English Translation */}
-                  <p className="text-sm sm:text-base text-[var(--ink-primary)] italic font-serif leading-relaxed text-left">
-                    "{ex.english}"
-                  </p>
+              {/* English Translation */}
+              <p className="text-sm sm:text-base text-[var(--ink-primary)] italic font-serif leading-relaxed text-left">
+                "{defaultEnglish}"
+              </p>
+            </div>
+
+            {/* Generated Additional Examples */}
+            <div className="pt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+                  Additional Generated Examples ({parsedAdditional.length})
+                </h4>
+                {isLoadingExamples && (
+                  <span className="text-xs text-[var(--ink-muted)] flex items-center gap-1.5 font-mono">
+                    <Loader2 className="w-3 h-3 animate-spin text-[var(--accent-ochre)]" />
+                    Syncing examples...
+                  </span>
+                )}
+              </div>
+
+              {parsedAdditional.length === 0 ? (
+                <div className="p-6 rounded-2xl border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--ink-muted)]">
+                  No additional examples generated yet. Use the generator above to create contextual examples for different situations!
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {parsedAdditional.map((ex, idx) => (
+                    <div
+                      key={ex.id || idx}
+                      className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 hover:border-[var(--accent-ochre)]/40 transition-colors shadow-xs"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="text-[11px] font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full capitalize">
+                          {ex.scenario || 'Generated Example'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <AudioPronounceButton
+                            arabicText={ex.arabic}
+                            size="sm"
+                            title="Pronounce Arabic sentence"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(confirmDeleteId === ex.id ? null : ex.id)}
+                            disabled={isDeletingId === ex.id}
+                            className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                            title="Delete example sentence"
+                            aria-label="Delete sentence"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Inline Confirmation Prompt */}
+                      {confirmDeleteId === ex.id && (
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 animate-fadeIn">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                            <span>Delete this example sentence?</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              disabled={isDeletingId === ex.id}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExample(ex.id)}
+                              disabled={isDeletingId === ex.id}
+                              className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              {isDeletingId === ex.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Deleting...
+                                </>
+                              ) : (
+                                'Confirm Delete'
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Arabic Sentence */}
+                      <p
+                        dir="rtl"
+                        className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right"
+                      >
+                        {ex.arabic}
+                      </p>
+
+                      {/* Transliteration */}
+                      {ex.transliteration && (
+                        <p className="text-sm font-mono text-[var(--ink-secondary)] font-medium text-left leading-normal">
+                          {ex.transliteration}
+                        </p>
+                      )}
+
+                      {/* English Translation */}
+                      <p className="text-sm sm:text-base text-[var(--ink-primary)] italic font-serif leading-relaxed text-left">
+                        "{ex.english}"
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

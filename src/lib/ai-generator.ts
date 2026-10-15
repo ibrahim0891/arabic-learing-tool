@@ -348,7 +348,12 @@ export async function generateVocabularySet(options: GenerateWordsOptions): Prom
     : '';
 
   const prompt = `
-You are an expert Arabic language tutor designing a vocabulary study set for a student.
+You are an expert native Arabic language tutor designing a vocabulary study set for a student.
+
+DIALECT & REGISTER:
+- Language: White Dialect / Educated Spoken Arabic (اللَّهْجَة الْبَيْضَاء).
+- This is the universally understood pan-Arab conversational Arabic used across the Middle East, media, and daily life.
+- Avoid archaic classical grammatical case endings (i'rab). Use natural, practical, contemporary vocabulary and conversational phrasing that real people use.
 
 CONFIGURATION:
 - Number of words: ${options.count || 10}
@@ -357,12 +362,12 @@ CONFIGURATION:
 - Target word types: "${options.wordType}"
 
 CRITICAL LEARNING RULES:
-1. Words MUST NOT feel random. Group all words around one realistic situation or short storyline (e.g. commuting to work, ordering at a bustling cafe, solving a coding problem on a laptop, visiting a doctor).
-2. Every Arabic word and example sentence MUST have full diacritics (Harakat: fatḥah, kasrah, ḍammah, sukūn, shaddah, tanwīn) for correct pronunciation.
-3. For every verb, you MUST provide presentTenseI (e.g. أَكْتُبُ) and presentTenseHe (e.g. يَكْتُبُ) and optionally the 3-letter root.
-4. Reuse words across example sentences so the learner sees how they connect in a story.
-5. Provide accurate English translations, realistic transliterations for BOTH the individual word (transliteration) AND the full example sentence (exampleTransliteration), and insightful usage explanations.
-6. MANDATORY: "exampleTransliteration" MUST NOT be empty or omitted. It must provide the complete Romanized pronunciation of the example sentence (e.g. "Qara'tu kitāban mufīdan fī al-maktabah.").
+1. Words MUST NOT feel random. Group all words around one realistic situation or short storyline (e.g. commuting to work, ordering at a bustling cafe, solving a coding problem on a laptop, visiting a doctor, hanging out with friends).
+2. MANDATORY: Every Arabic word and example sentence MUST have full diacritics (Harakat: fatḥah, kasrah, ḍammah, sukūn, shaddah) showing the exact spoken pronunciation so the learner never guesses vowels.
+3. For verbs, provide practical spoken present tense forms: presentTenseI (e.g. بَكْتُبْ / أَكْتُبْ) and presentTenseHe (e.g. بِيِكْتُبْ / يَكْتُبْ) and the 3-letter root.
+4. Reuse words across example sentences so the learner sees how they connect in a realistic conversational story.
+5. Provide accurate English translations, realistic spoken phonetic transliterations for BOTH the individual word (transliteration) AND the full example sentence (exampleTransliteration), and insightful usage explanations.
+6. MANDATORY: "exampleTransliteration" MUST NOT be empty or omitted. It must provide the complete Romanized pronunciation of the example sentence.
 
 ${excludeSection}
 ${revisionSection}
@@ -391,7 +396,7 @@ Respond ONLY with a valid JSON object matching this exact schema:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-3.5-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

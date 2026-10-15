@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { DraftsManager } from './DraftsManager';
+import { Button } from './ui/Button';
 
 interface WordGeneratorProps {
   onSavedSuccess: (newWordsCount: number) => void;
@@ -186,31 +187,25 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
           </div>
 
           {/* Navigation Pill Switcher */}
-          <div className="flex items-center p-1 bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-xl self-start sm:self-auto shadow-sm">
-            <button
+          <div className="flex items-center gap-1.5 p-1 bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-xl self-start sm:self-auto shadow-sm">
+            <Button
               type="button"
+              variant={activeTab === 'generate' ? 'primary' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('generate')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === 'generate'
-                  ? 'bg-[var(--accent-ochre)] text-[#121316] shadow-sm'
-                  : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-              }`}
+              leftIcon={<Sparkles className="w-3.5 h-3.5" />}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Generate Words</span>
-            </button>
-            <button
+              Generate Words
+            </Button>
+            <Button
               type="button"
+              variant={activeTab === 'drafts' ? 'primary' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('drafts')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === 'drafts'
-                  ? 'bg-[var(--accent-ochre)] text-[#121316] shadow-sm'
-                  : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-              }`}
+              leftIcon={<Inbox className="w-3.5 h-3.5" />}
             >
-              <Inbox className="w-3.5 h-3.5" />
-              <span>Drafts Collection</span>
-            </button>
+              Drafts Collection
+            </Button>
           </div>
         </div>
 
@@ -369,23 +364,16 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
         )}
 
         {/* Generate Button */}
-        <button
+        <Button
           type="submit"
-          disabled={isLoading}
-          className="btn-ochre py-3.5 px-8 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          variant="primary"
+          size="lg"
+          isLoading={isLoading}
+          leftIcon={<Sparkles className="w-4 h-4" />}
+          className="uppercase tracking-wider text-xs font-semibold py-3.5 px-8"
         >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Weaving Storyline & Crafting Words...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              <span>Generate My Words</span>
-            </>
-          )}
-        </button>
+          {isLoading ? 'Weaving Storyline & Crafting Words...' : 'Generate My Words'}
+        </Button>
       </form>
 
       {/* ================= SKELETON LOADING ANIMATION ================= */}
@@ -466,29 +454,30 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
                 </h3>
               </div>
 
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
                 onClick={handleSaveToLibrary}
-                disabled={isSaving || !!saveSuccessMsg || selectedIndices.size === 0}
-                className="btn-ochre py-2.5 px-5 rounded-lg text-xs font-semibold flex items-center gap-2 cursor-pointer self-start sm:self-auto disabled:opacity-50"
+                disabled={!!saveSuccessMsg || selectedIndices.size === 0}
+                isLoading={isSaving}
+                leftIcon={
+                  saveSuccessMsg ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <BookmarkPlus className="w-4 h-4" />
+                  )
+                }
+                className="self-start sm:self-auto"
               >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : saveSuccessMsg ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <BookmarkPlus className="w-4 h-4" />
-                )}
-                <span>
-                  {saveSuccessMsg
-                    ? 'Saved to Word Bank!'
-                    : selectedIndices.size === 0
-                    ? 'Select words to save'
-                    : selectedIndices.size === generatedResult.words.length
-                    ? `Save All ${generatedResult.words.length} Words`
-                    : `Save Selected (${selectedIndices.size}/${generatedResult.words.length})`}
-                </span>
-              </button>
+                {saveSuccessMsg
+                  ? 'Saved to Word Bank!'
+                  : selectedIndices.size === 0
+                  ? 'Select words to save'
+                  : selectedIndices.size === generatedResult.words.length
+                  ? `Save All ${generatedResult.words.length} Words`
+                  : `Save Selected (${selectedIndices.size}/${generatedResult.words.length})`}
+              </Button>
             </div>
 
             <p className="text-sm text-[var(--ink-secondary)] leading-relaxed italic border-l-2 border-[var(--accent-ochre)] pl-3.5">

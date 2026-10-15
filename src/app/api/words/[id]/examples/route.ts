@@ -41,11 +41,13 @@ export async function POST(
     if (apiKey && apiKey.trim() !== '') {
       const ai = new GoogleGenAI({ apiKey });
 
-      const prompt = `You are an expert Arabic language tutor and native linguist.
+      const prompt = `You are a native Arabic tutor and linguist.
+Language Register: White Dialect / Educated Spoken Arabic (اللَّهْجَة الْبَيْضَاء) — the natural, widely understood conversational Arabic used across the Middle East in daily life, media, podcasts, and realistic dialogues.
+
 Target Arabic Word: "${word.arabic}" (Transliteration: "${word.transliteration}", Meaning: "${word.english}", Type: "${word.wordType || 'noun'}").
 Root: "${word.root || 'N/A'}".
 
-Generate exactly ${requestedCount} diverse, natural Arabic example sentences featuring this word.
+Generate exactly ${requestedCount} diverse, natural spoken Arabic example sentences featuring this word.
 
 Context / Scenario: ${scenario} (${
         scenario === 'generic'
@@ -55,7 +57,7 @@ Context / Scenario: ${scenario} (${
           : scenario === 'business'
           ? 'Work, professional, email or office setting'
           : scenario === 'story'
-          ? 'Descriptive literature, storytelling or emotional narrative'
+          ? 'Descriptive storytelling or emotional narrative'
           : scenario === 'travel'
           ? 'Travel, hotel, airport, asking directions, restaurants'
           : scenario === 'academic'
@@ -65,21 +67,22 @@ Context / Scenario: ${scenario} (${
 
 Variation focus: ${
         variationType === 'grammatical'
-          ? 'Vary grammatical tenses, subjects (I, you, he, she, we, they), question forms, and negation.'
+          ? 'Vary grammatical tenses, subjects (I, you, he, she, we, they), question forms, and conversational negation.'
           : variationType === 'difficulty'
-          ? 'Progress from easy simple sentences to slightly richer, more expressive sentences.'
+          ? 'Progress from easy simple sentences to slightly richer, more expressive phrases.'
           : variationType === 'idiomatic'
-          ? 'Include common idiomatic phrases, collocations, or cultural expressions.'
+          ? 'Include common spoken idioms, collocations, or natural cultural expressions.'
           : 'A well-rounded mix of simple everyday speech and descriptive practical usage.'
       }
 
 ${customInstruction ? `Additional Custom User Instruction: "${customInstruction}"` : ''}
 
 CRITICAL RULES:
-1. Every Arabic sentence MUST include full diacritics/tashkeel (harakat: fatḥah, kasrah, ḍammah, sukūn, shaddah, tanwīn) on every letter.
-2. Provide precise English translation.
-3. Provide accurate transliteration with macrons or apostrophes where appropriate.
-4. Output valid JSON ONLY matching the following schema. Do NOT include markdown comments or wrapping other than standard JSON:
+1. Use authentic White Dialect / conversational Arabic phrasing (avoid archaic textbook case endings like i'rab).
+2. MANDATORY: Every Arabic sentence MUST include full diacritics / tashkeel (fatḥah, kasrah, ḍammah, sukūn, shaddah) on every letter so the learner knows the exact spoken vowels.
+3. Provide natural, accurate English translations.
+4. Provide accurate phonetic transliteration matching the natural spoken pronunciation.
+5. Output valid JSON ONLY matching the following schema. Do NOT include markdown comments or wrapping other than standard JSON:
 
 [
   {
@@ -91,7 +94,7 @@ CRITICAL RULES:
 ]`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.5-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -152,19 +155,14 @@ CRITICAL RULES:
       additionalExamples: updatedAdditional,
     });
 
-    const safeWord = updatedWord
-      ? {
-          ...updatedWord,
-          additionalExamples: Array.isArray(updatedWord.additionalExamples)
-            ? updatedWord.additionalExamples
-            : typeof updatedWord.additionalExamples === 'string'
-            ? (() => { try { return JSON.parse(updatedWord.additionalExamples); } catch (_) { return updatedAdditional; } })()
-            : updatedAdditional,
-        }
-      : {
-          ...word,
-          additionalExamples: updatedAdditional,
-        };
+    const safeWord = {
+      ...word,
+      ...(updatedWord || {}),
+      exampleArabic: updatedWord?.exampleArabic || word.exampleArabic,
+      exampleTransliteration: updatedWord?.exampleTransliteration || word.exampleTransliteration,
+      exampleEnglish: updatedWord?.exampleEnglish || word.exampleEnglish,
+      additionalExamples: updatedAdditional,
+    };
 
     return NextResponse.json({
       success: true,
@@ -176,6 +174,72 @@ CRITICAL RULES:
     console.error('Error generating examples for word:', error);
     return NextResponse.json(
       { error: error?.message || 'Failed to generate examples' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/words/[id]/examples?exampleId=... - Delete an example sentence from a word
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const exampleId = searchParams.get('exampleId');
+
+    if (!exampleId) {
+      return NextResponse.json(
+        { error: 'Missing exampleId query parameter' },
+        { status: 400 }
+      );
+    }
+
+    const words = await dataStore.getWords();
+    const word = words.find((w) => w.id === id);
+
+    if (!word) {
+      return NextResponse.json({ error: 'Word not found' }, { status: 404 });
+    }
+
+    const currentAdditional = Array.isArray(word.additionalExamples)
+      ? word.additionalExamples
+      : typeof word.additionalExamples === 'string'
+      ? (() => { try { return JSON.parse(word.additionalExamples); } catch (_) { return []; } })()
+      : [];
+
+    // Filter out the requested example sentence
+    const filteredAdditional = currentAdditional.filter(
+      (ex: ExampleSentence, index: number) => {
+        const idMatches = ex.id === exampleId;
+        const indexMatches = `idx_${index}` === exampleId;
+        return !idMatches && !indexMatches;
+      }
+    );
+
+    const updatedWord = await dataStore.updateWord(id, {
+      additionalExamples: filteredAdditional,
+    });
+
+    const safeWord = {
+      ...word,
+      ...(updatedWord || {}),
+      exampleArabic: updatedWord?.exampleArabic || word.exampleArabic,
+      exampleTransliteration: updatedWord?.exampleTransliteration || word.exampleTransliteration,
+      exampleEnglish: updatedWord?.exampleEnglish || word.exampleEnglish,
+      additionalExamples: filteredAdditional,
+    };
+
+    return NextResponse.json({
+      success: true,
+      deletedId: exampleId,
+      word: safeWord,
+    });
+  } catch (error: any) {
+    console.error('Error deleting example sentence:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete example sentence' },
       { status: 500 }
     );
   }
