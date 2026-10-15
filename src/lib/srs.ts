@@ -103,6 +103,53 @@ export function calculateNextReview(word: Word, rating: 1 | 2 | 3 | 4): {
 }
 
 /**
+ * Intelligently sort words for spaced repetition study:
+ * 1. Due / Overdue for review (nextReviewDate <= now): sorted by most overdue first.
+ *    - Struggling words due for review get extra urgency boost.
+ * 2. Struggling words (need reinforcement even if technically due today or tomorrow).
+ * 3. Fresh / Untested words (timesTested === 0 or memoryStatus === 'new') to introduce new vocabulary.
+ * 4. Words marked 'Good' or 'Easy' that are NOT due yet (nextReviewDate > now): deferred to the back of the queue, ordered by nearest due date.
+ */
+export function sortWordsBySmartPriority(words: Word[]): Word[] {
+  const now = Date.now();
+
+  return [...words].sort((a, b) => {
+    const aDueTime = a.nextReviewDate ? new Date(a.nextReviewDate).getTime() : 0;
+    const bDueTime = b.nextReviewDate ? new Date(b.nextReviewDate).getTime() : 0;
+
+    const aIsOverdue = aDueTime <= now;
+    const bIsOverdue = bDueTime <= now;
+
+    const aIsNew = !a.timesTested || a.timesTested === 0 || a.memoryStatus === 'new';
+    const bIsNew = !b.timesTested || b.timesTested === 0 || b.memoryStatus === 'new';
+
+    const aIsStruggling = a.memoryStatus === 'struggling';
+    const bIsStruggling = b.memoryStatus === 'struggling';
+
+    // Tier 1: Overdue cards (most urgent)
+    if (aIsOverdue && !bIsOverdue) return -1;
+    if (!aIsOverdue && bIsOverdue) return 1;
+
+    if (aIsOverdue && bIsOverdue) {
+      if (aIsStruggling && !bIsStruggling) return -1;
+      if (!aIsStruggling && bIsStruggling) return 1;
+      return aDueTime - bDueTime;
+    }
+
+    // Tier 2: Struggling cards
+    if (aIsStruggling && !bIsStruggling) return -1;
+    if (!aIsStruggling && bIsStruggling) return 1;
+
+    // Tier 3: New words (fresh learning)
+    if (aIsNew && !bIsNew) return -1;
+    if (!aIsNew && bIsNew) return 1;
+
+    // Tier 4: Future scheduled words (not due yet). Order by nearest due date
+    return aDueTime - bDueTime;
+  });
+}
+
+/**
  * Remove Arabic diacritics (harakāt) for flexible fuzzy matching during typing tests
  */
 export function stripHarakat(text: string): string {

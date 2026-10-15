@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import db from './db';
-import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence } from './types';
+import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence, ConversationSession, ChatMessage } from './types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xqzkgespanhdzbudaeoz.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_aYl97LnIVJoQWLRslNWlWg_63YGRjK5';
@@ -745,5 +745,97 @@ export const dataStore = {
     } catch (_) {}
 
     return sentence;
+  },
+
+  // Save new conversation session
+  async saveConversation(conv: ConversationSession): Promise<ConversationSession> {
+    // 1. Save to Supabase
+    try {
+      const payload = {
+        id: conv.id,
+        title: conv.title,
+        topic: conv.topic,
+        difficulty: conv.difficulty,
+        speaker_count: conv.speakerCount,
+        speakers: JSON.stringify(conv.speakers),
+        messages: JSON.stringify(conv.messages),
+        created_at: conv.createdAt,
+      };
+      await supabase.from('conversations').upsert([payload]);
+    } catch (_) {}
+
+    // 2. Save to SQLite
+    try {
+      db.prepare(`
+        INSERT OR REPLACE INTO conversations (
+          id, title, topic, difficulty, speakerCount, speakers, messages, createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        conv.id,
+        conv.title,
+        conv.topic,
+        conv.difficulty,
+        conv.speakerCount,
+        JSON.stringify(conv.speakers),
+        JSON.stringify(conv.messages),
+        conv.createdAt
+      );
+    } catch (_) {}
+
+    return conv;
+  },
+
+  // Get all conversations list
+  async getConversations(): Promise<ConversationSession[]> {
+    // 1. Try Supabase
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          topic: row.topic,
+          difficulty: row.difficulty,
+          speakerCount: Number(row.speaker_count || row.speakerCount || 2),
+          speakers: typeof row.speakers === 'string' ? (() => { try { return JSON.parse(row.speakers); } catch (_) { return []; } })() : (row.speakers || []),
+          messages: typeof row.messages === 'string' ? (() => { try { return JSON.parse(row.messages); } catch (_) { return []; } })() : (row.messages || []),
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+        }));
+      }
+    } catch (_) {}
+
+    // 2. Try SQLite
+    try {
+      const rows = db.prepare('SELECT * FROM conversations ORDER BY createdAt DESC').all() as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          topic: row.topic,
+          difficulty: row.difficulty,
+          speakerCount: Number(row.speakerCount || 2),
+          speakers: typeof row.speakers === 'string' ? (() => { try { return JSON.parse(row.speakers); } catch (_) { return []; } })() : (row.speakers || []),
+          messages: typeof row.messages === 'string' ? (() => { try { return JSON.parse(row.messages); } catch (_) { return []; } })() : (row.messages || []),
+          createdAt: row.createdAt || new Date().toISOString(),
+        }));
+      }
+    } catch (_) {}
+
+    return [];
+  },
+
+  // Delete conversation by ID
+  async deleteConversation(id: string): Promise<boolean> {
+    try {
+      await supabase.from('conversations').delete().eq('id', id);
+    } catch (_) {}
+    try {
+      db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
+    } catch (_) {}
+    return true;
   }
 };

@@ -18,6 +18,7 @@ import {
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { Button } from './ui/Button';
+import { sortWordsBySmartPriority } from '@/lib/srs';
 import confetti from 'canvas-confetti';
 
 interface FlashcardStudyProps {
@@ -26,7 +27,7 @@ interface FlashcardStudyProps {
 }
 
 export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
-  initialFilter = 'all',
+  initialFilter = 'smart',
   onSessionComplete,
 }) => {
   const [words, setWords] = useState<Word[]>([]);
@@ -58,8 +59,15 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
       }
 
       const res = await fetch(url);
-      const data = await res.json();
-      setWords(data || []);
+      const data: Word[] = await res.json();
+
+      // When in 'smart' mode, apply intelligent SRS priority queue:
+      // Overdue first -> Struggling -> New words -> Not-due words deferred
+      if (filter === 'smart') {
+        setWords(sortWordsBySmartPriority(data || []));
+      } else {
+        setWords(data || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -90,10 +98,21 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
 
       if (res.ok) {
         const updatedWord: Word = await res.json();
-        // Update the word in local words array so Mastered / Learning / Tricky recalculate reactively
-        setWords((prevWords) =>
-          prevWords.map((w) => (w.id === updatedWord.id ? { ...w, ...updatedWord } : w))
-        );
+        
+        // Intelligently update session deck:
+        setWords((prevWords) => {
+          let updated = prevWords.map((w, idx) => (idx === currentIndex ? { ...w, ...updatedWord } : w));
+
+          // In-Session Intelligent SRS Repetition:
+          // If rated "Again" (1), re-queue this card ~4 cards ahead (or at the end of the session)
+          // so the user actually gets a chance to practice and retain it before finishing!
+          if (rating === 1) {
+            const reinsertIndex = Math.min(updated.length, currentIndex + 4);
+            const repeatWord = { ...updatedWord, isRequeued: true };
+            updated.splice(reinsertIndex, 0, repeatWord);
+          }
+          return updated;
+        });
       }
 
       setStudiedCount((prev) => prev + 1);
@@ -234,19 +253,20 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     <div className="w-full space-y-6 animate-fadeIn">
       {/* Top Filter & Deck Count Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4 text-xs">
-        <div className="flex items-center gap-3 sm:gap-4 font-medium">
+        <div className="flex items-center gap-3 sm:gap-4 font-medium flex-wrap">
           <button
-            onClick={() => setFilter('all')}
-            className={`cursor-pointer transition-colors ${filter === 'all' ? 'text-[var(--accent-ochre)] font-bold text-sm' : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'}`}
+            onClick={() => setFilter('smart')}
+            className={`cursor-pointer transition-colors flex items-center gap-1.5 ${filter === 'smart' ? 'text-[var(--accent-ochre)] font-bold text-sm' : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'}`}
           >
-            All Words ({words.length})
+            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
+            <span>Smart Queue ({words.length})</span>
           </button>
           <span className="text-[var(--border-subtle)]">•</span>
           <button
             onClick={() => setFilter('revision')}
             className={`cursor-pointer transition-colors ${filter === 'revision' ? 'text-[var(--accent-ochre)] font-bold text-sm' : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'}`}
           >
-            Words to Review
+            Due for Review
           </button>
           <span className="text-[var(--border-subtle)]">•</span>
           <button
@@ -254,6 +274,13 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
             className={`cursor-pointer transition-colors ${filter === 'struggling' ? 'text-[var(--accent-terracotta)] font-bold text-sm' : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'}`}
           >
             Tricky Words
+          </button>
+          <span className="text-[var(--border-subtle)]">•</span>
+          <button
+            onClick={() => setFilter('all')}
+            className={`cursor-pointer transition-colors ${filter === 'all' ? 'text-[var(--accent-ochre)] font-bold text-sm' : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'}`}
+          >
+            All Words
           </button>
         </div>
 
@@ -314,9 +341,23 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
 
                 {/* Bottom Bar on Front */}
                 <div className="pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs sm:text-sm text-[var(--ink-muted)] w-full">
-                  <span>
-                    Status: <strong className="text-[var(--ink-secondary)] capitalize font-semibold">{currentWord.memoryStatus === 'learning' ? 'Currently Learning' : currentWord.memoryStatus === 'struggling' ? 'Needs Practice' : currentWord.memoryStatus === 'mastered' ? 'Mastered' : 'New Word'}</strong>
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span>
+                      Status: <strong className="text-[var(--ink-secondary)] capitalize font-semibold">{currentWord.memoryStatus === 'learning' ? 'Currently Learning' : currentWord.memoryStatus === 'struggling' ? 'Needs Practice' : currentWord.memoryStatus === 'mastered' ? 'Mastered' : 'New Word'}</strong>
+                    </span>
+                    {currentWord.isRequeued && (
+                      <span className="px-1.5 py-0.5 rounded-sm text-[10px] bg-red-500/15 text-red-400 font-bold">
+                        Re-queued (Again)
+                      </span>
+                    )}
+                    {!currentWord.isRequeued && currentWord.nextReviewDate && (
+                      <span className="text-[11px] font-mono text-[var(--ink-muted)]">
+                        {new Date(currentWord.nextReviewDate).getTime() <= Date.now()
+                          ? '• Due Today'
+                          : `• Review in ${Math.max(1, Math.ceil((new Date(currentWord.nextReviewDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}d`}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[var(--accent-ochre)] font-semibold flex items-center gap-1.5">
                     Show Answer <RotateCw className="w-4 h-4" />
                   </span>
@@ -419,37 +460,41 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                 {/* Forgot */}
                 <button
                   onClick={() => handleCardRating(1)}
-                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <span className="block text-base sm:text-lg font-bold">Again</span>
-                  <span className="text-xs opacity-80 mt-1 block">Forgot it (1)</span>
+                  <span className="text-xs opacity-80 mt-0.5 block">Forgot it (1)</span>
+                  <span className="text-[10px] opacity-70 mt-1 block font-mono">1d • Re-queues</span>
                 </button>
 
                 {/* Hard */}
                 <button
                   onClick={() => handleCardRating(2)}
-                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <span className="block text-base sm:text-lg font-bold">Hard</span>
-                  <span className="text-xs opacity-80 mt-1 block">Partly knew (2)</span>
+                  <span className="text-xs opacity-80 mt-0.5 block">Partly knew (2)</span>
+                  <span className="text-[10px] opacity-70 mt-1 block font-mono">1–2 days</span>
                 </button>
 
                 {/* Good */}
                 <button
                   onClick={() => handleCardRating(3)}
-                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <span className="block text-base sm:text-lg font-bold">Good</span>
-                  <span className="text-xs opacity-80 mt-1 block">Remembered (3)</span>
+                  <span className="text-xs opacity-80 mt-0.5 block">Remembered (3)</span>
+                  <span className="text-[10px] opacity-70 mt-1 block font-mono">4–10 days</span>
                 </button>
 
                 {/* Easy */}
                 <button
                   onClick={() => handleCardRating(4)}
-                  className="p-4 sm:p-5 rounded-2xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)]/10 text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
+                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)]/10 text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm"
                 >
                   <span className="block text-base sm:text-lg font-bold">Easy</span>
-                  <span className="text-xs opacity-80 mt-1 block">Knew well (4)</span>
+                  <span className="text-xs opacity-80 mt-0.5 block">Knew well (4)</span>
+                  <span className="text-[10px] opacity-70 mt-1 block font-mono">7–25+ days</span>
                 </button>
               </div>
             </div>
@@ -468,14 +513,16 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
-              <Button
-                onClick={() => setIsFlipped(true)}
-                variant="primary"
-                size="md"
-                className="px-8 py-3 text-sm font-bold shadow-md"
-              >
-                Reveal Answer <span className="hidden sm:inline font-mono text-xs opacity-80">[Space]</span>
-              </Button>
+              <div className="hidden sm:block">
+                <Button
+                  onClick={() => setIsFlipped(true)}
+                  variant="primary"
+                  size="md"
+                  className="px-8 py-3 text-sm font-bold shadow-md"
+                >
+                  Reveal Answer <span className="font-mono text-xs opacity-80">[Space]</span>
+                </Button>
+              </div>
 
               <button
                 onClick={() => {

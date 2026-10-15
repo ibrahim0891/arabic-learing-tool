@@ -121,6 +121,17 @@ function getDatabaseInstance() {
         slotIndex INTEGER NOT NULL,
         updatedAt TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        speakerCount INTEGER NOT NULL DEFAULT 2,
+        speakers TEXT NOT NULL,
+        messages TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      );
     `);
 
     // Safe migration for existing SQLite files

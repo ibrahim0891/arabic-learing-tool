@@ -8,6 +8,7 @@ import {
   BookOpen,
   GraduationCap,
   Library,
+  MessageSquare,
   Sun,
   Moon,
   Settings,
@@ -90,11 +91,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isQuizActive = pathname.startsWith('/quiz') || pathname.startsWith('/test');
   const isLibraryActive = pathname.startsWith('/library');
   const isSettingsActive = pathname.startsWith('/settings');
+  const isConversationsPage = pathname.startsWith('/conversations');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--ink-primary)]">
+    <div className={`${isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'} flex flex-col bg-[var(--bg-primary)] text-[var(--ink-primary)]`}>
       {/* Top Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-md shrink-0">
         <div className="container-max flex h-16 items-center justify-between">
           {/* Logo Brand */}
           <Link
@@ -149,6 +151,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" /> Practice Flashcards
+            </Link>
+
+            <Link
+              href="/conversations"
+              className={`transition-colors relative py-1.5 flex items-center gap-1.5 no-underline ${
+                pathname.startsWith('/conversations')
+                  ? 'text-[var(--accent-ochre)] border-b-2 border-[var(--accent-ochre)]'
+                  : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" /> Dialogues
             </Link>
 
             <Link
@@ -230,6 +243,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             Cards
           </Link>
           <Link
+            href="/conversations"
+            className={`no-underline ${pathname.startsWith('/conversations') ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-muted)]'}`}
+          >
+            Dialogues
+          </Link>
+          <Link
             href="/quiz"
             className={`no-underline ${isQuizActive ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-muted)]'}`}
           >
@@ -251,26 +270,28 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </header>
 
       {/* Main Viewport */}
-      <main className="flex-1 container-max py-8 sm:py-10">
+      <main className={`flex-1 min-h-0 w-full ${isConversationsPage ? 'p-0 flex flex-col overflow-hidden' : 'container-max py-8 sm:py-10'}`}>
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border-subtle)] py-6 mt-12 text-center text-xs text-[var(--ink-muted)]">
-        <div className="container-max flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-arabic text-base text-[var(--accent-ochre)]">فَصِيح</span>
-            <span>• Focused Arabic Vocabulary Practice</span>
+      {/* Footer (hidden on conversations view for full-height WhatsApp/Messenger experience) */}
+      {!isConversationsPage && (
+        <footer className="border-t border-[var(--border-subtle)] py-6 mt-12 text-center text-xs text-[var(--ink-muted)]">
+          <div className="container-max flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-arabic text-base text-[var(--accent-ochre)]">فَصِيح</span>
+              <span>• Focused Arabic Vocabulary Practice</span>
+            </div>
+            <div className="flex items-center gap-4 text-[11px]">
+              <span>Spaced Repetition (SM-2)</span>
+              <span>•</span>
+              <Link href="/settings" className="hover:text-[var(--accent-ochre)] transition-colors no-underline">
+                Settings & Reset
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>Spaced Repetition (SM-2)</span>
-            <span>•</span>
-            <Link href="/settings" className="hover:text-[var(--accent-ochre)] transition-colors no-underline">
-              Settings & Reset
-            </Link>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

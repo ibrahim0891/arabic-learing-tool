@@ -65,6 +65,7 @@ export interface Word {
   repetitionCount: number;
   nextReviewDate: string; // ISO string
   lastReviewedDate?: string; // ISO string
+  isRequeued?: boolean; // In-session repetition for cards marked "Again"
 }
 
 export interface DraftWord {

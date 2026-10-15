@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Sparkles,
   BookOpen,
@@ -271,6 +272,31 @@ export const DashboardView: React.FC<DashboardProps> = ({
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
+
+            {/* Dialogues Practice Card */}
+            <Link
+              href="/conversations"
+              className="flex-1 group cursor-pointer p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--accent-ochre)] transition-all flex flex-col justify-between no-underline"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <span className="text-xs font-semibold text-[var(--accent-ochre)] block mb-1">
+                    Step 4 • Read & Chat
+                  </span>
+                  <h3 className="editorial-title text-xl font-semibold text-[var(--ink-primary)] group-hover:text-[var(--accent-ochre)] transition-colors">
+                    Spoken Dialogues
+                  </h3>
+                </div>
+                <span className="font-arabic text-xl text-[var(--ink-muted)]">حِوَارَات</span>
+              </div>
+              <p className="text-xs text-[var(--ink-secondary)] leading-relaxed mb-3">
+                Read authentic conversational chats, hover for audio, and tap bubbles to reveal translations.
+              </p>
+              <div className="flex items-center justify-between text-xs text-[var(--accent-ochre)] font-semibold pt-2 border-t border-[var(--border-subtle)]">
+                <span>Practice Spoken Dialogues</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
           </div>
         </div>
       </section>
