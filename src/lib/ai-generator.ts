@@ -361,7 +361,8 @@ CRITICAL LEARNING RULES:
 2. Every Arabic word and example sentence MUST have full diacritics (Harakat: fatḥah, kasrah, ḍammah, sukūn, shaddah, tanwīn) for correct pronunciation.
 3. For every verb, you MUST provide presentTenseI (e.g. أَكْتُبُ) and presentTenseHe (e.g. يَكْتُبُ) and optionally the 3-letter root.
 4. Reuse words across example sentences so the learner sees how they connect in a story.
-5. Provide accurate English translations, realistic transliterations, and insightful usage explanations.
+5. Provide accurate English translations, realistic transliterations for BOTH the individual word (transliteration) AND the full example sentence (exampleTransliteration), and insightful usage explanations.
+6. MANDATORY: "exampleTransliteration" MUST NOT be empty or omitted. It must provide the complete Romanized pronunciation of the example sentence (e.g. "Qara'tu kitāban mufīdan fī al-maktabah.").
 
 ${excludeSection}
 ${revisionSection}
@@ -395,6 +396,9 @@ Respond ONLY with a valid JSON object matching this exact schema:
       config: {
         responseMimeType: 'application/json',
         temperature: 0.7,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     });
 

@@ -350,5 +350,62 @@ export const dataStore = {
         session.totalQuestions || null, session.accuracyPercentage || null, session.notes || null
       );
     } catch (_) {}
+  },
+
+  // Get aggregated dashboard statistics
+  async getDashboardStats(): Promise<DashboardStats> {
+    const allWords = await this.getWords();
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
+
+    const totalWords = allWords.length;
+    const totalLearned = allWords.filter(w => w.memoryStatus !== 'new').length;
+    const currentlyStudying = allWords.filter(w => w.memoryStatus === 'learning').length;
+    const struggling = allWords.filter(w => w.memoryStatus === 'struggling').length;
+    const mastered = allWords.filter(w => w.memoryStatus === 'mastered').length;
+    const readyForRevision = allWords.filter(w => w.memoryStatus !== 'new' && w.nextReviewDate <= nowIso).length;
+
+    let recentSessions: StudySessionLog[] = [];
+    let todayStudiedCount = 0;
+
+    try {
+      const { data } = await supabase.from('study_sessions').select('*').order('date', { ascending: false }).limit(6);
+      if (data && data.length > 0) {
+        recentSessions = data.map((r: any) => ({
+          id: r.id,
+          date: r.date,
+          type: r.type,
+          cardsStudied: Number(r.cards_studied || 0),
+          score: r.score,
+          totalQuestions: r.total_questions,
+          accuracyPercentage: r.accuracy_percentage,
+          notes: r.notes,
+        }));
+        todayStudiedCount = recentSessions
+          .filter(s => (s.date || '').startsWith(todayStr))
+          .reduce((acc, curr) => acc + (curr.cardsStudied || 0), 0);
+      }
+    } catch (_) {}
+
+    if (recentSessions.length === 0) {
+      try {
+        recentSessions = db.prepare('SELECT * FROM study_sessions ORDER BY date DESC LIMIT 6').all() as StudySessionLog[];
+        const todayRow = db.prepare("SELECT SUM(cardsStudied) as totalCards FROM study_sessions WHERE date LIKE ?").get(`${todayStr}%`) as { totalCards: number | null };
+        todayStudiedCount = todayRow?.totalCards || 0;
+      } catch (_) {}
+    }
+
+    return {
+      totalWords,
+      totalLearned,
+      currentlyStudying,
+      struggling,
+      mastered,
+      readyForRevision,
+      todayStudiedCount,
+      dailyGoal: 20,
+      recentSessions,
+      accuracyRate: totalLearned > 0 ? Math.min(100, Math.round(((mastered + currentlyStudying) / totalLearned) * 100)) : 85,
+    };
   }
 };

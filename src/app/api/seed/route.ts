@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
-import { Word } from '@/lib/types';
+import { dataStore, supabase } from '@/lib/supabase-store';
+import { Word, WordSet } from '@/lib/types';
 
 const defaultSeedWords = [
   {
@@ -113,68 +113,57 @@ const defaultSeedWords = [
 
 export async function POST() {
   try {
-    const existingCount = db.prepare('SELECT COUNT(*) as count FROM words').get() as { count: number };
-    if (existingCount.count > 0) {
-      return NextResponse.json({ message: 'Database already has vocabulary', count: existingCount.count });
+    const existingWords = await dataStore.getWords();
+    if (existingWords.length > 0) {
+      return NextResponse.json({ message: 'Database already has vocabulary', count: existingWords.length });
     }
 
     const setId = 'set_starter_foundations';
     const nowIso = new Date().toISOString();
 
-    db.prepare(`
-      INSERT INTO word_sets (id, title, themeContext, topic, difficulty, createdAt, wordsCount)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      setId,
-      'Everyday Study & Friendship (الدراسة والصداقة)',
-      'Meeting a friend at the university library, sharing books, writing notes, and enjoying tea.',
-      'daily life',
-      'beginner',
-      nowIso,
-      defaultSeedWords.length
-    );
+    const starterSet: WordSet = {
+      id: setId,
+      title: 'Everyday Study & Friendship (الدراسة والصداقة)',
+      themeContext: 'Meeting a friend at the university library, sharing books, writing notes, and enjoying tea.',
+      topic: 'daily life',
+      difficulty: 'beginner',
+      createdAt: nowIso,
+      wordsCount: defaultSeedWords.length,
+    };
 
-    const insertWord = db.prepare(`
-      INSERT INTO words (
-        id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
-        exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
-        setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
-        easeFactor, intervalDays, repetitionCount, nextReviewDate
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, 0, 0, 0, 'new',
-        2.5, 0, 0, ?
-      )
-    `);
+    const wordsToInsert: Partial<Word>[] = defaultSeedWords.map((w, i) => ({
+      id: `starter_word_${i + 1}`,
+      arabic: w.arabic,
+      transliteration: w.transliteration,
+      english: w.english,
+      wordType: w.wordType,
+      presentTenseI: w.presentTenseI || undefined,
+      presentTenseHe: w.presentTenseHe || undefined,
+      root: w.root || undefined,
+      exampleArabic: w.exampleArabic,
+      exampleTransliteration: w.exampleTransliteration,
+      exampleEnglish: w.exampleEnglish,
+      explanation: w.explanation,
+      topic: w.topic,
+      difficulty: w.difficulty as 'beginner',
+      setId: setId,
+      setName: 'Everyday Study & Friendship',
+      dateAdded: nowIso,
+      timesTested: 0,
+      timesCorrect: 0,
+      timesIncorrect: 0,
+      memoryStatus: 'new',
+      easeFactor: 2.5,
+      intervalDays: 0,
+      repetitionCount: 0,
+      nextReviewDate: nowIso,
+    }));
 
-    for (let i = 0; i < defaultSeedWords.length; i++) {
-      const w = defaultSeedWords[i];
-      insertWord.run(
-        `starter_word_${i + 1}`,
-        w.arabic,
-        w.transliteration,
-        w.english,
-        w.wordType,
-        w.presentTenseI || null,
-        w.presentTenseHe || null,
-        w.root || null,
-        w.exampleArabic,
-        w.exampleTransliteration,
-        w.exampleEnglish,
-        w.explanation,
-        w.topic,
-        w.difficulty,
-        setId,
-        'Everyday Study & Friendship',
-        nowIso,
-        nowIso
-      );
-    }
+    await dataStore.saveWordSet(starterSet, wordsToInsert);
 
     return NextResponse.json({ message: 'Seeded initial vocabulary successfully', count: defaultSeedWords.length });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error seeding vocabulary:', error);
-    return NextResponse.json({ error: 'Failed to seed vocabulary' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Failed to seed vocabulary' }, { status: 500 });
   }
 }

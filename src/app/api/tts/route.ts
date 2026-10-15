@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
+// In-memory server-side cache for instant zero-latency repeats across all users/tabs
+const serverAudioCache = new Map<string, { audioContent: string; mimeType: string; sampleRate: number }>();
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -10,6 +13,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Text prompt is required for TTS' }, { status: 400 });
     }
 
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return NextResponse.json({ error: 'Text prompt is empty' }, { status: 400 });
+    }
+
+    // Instant return if already generated
+    const cached = serverAudioCache.get(trimmed);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 503 });
@@ -17,10 +31,10 @@ export async function POST(req: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Request Gemini 2.5 Flash with audio modality using "Orus" voice for clear Arabic articulation
+    // Request Gemini 2.5 Flash TTS with concise input for faster processing
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-preview-tts',
-      contents: `Pronounce the following Modern Standard Arabic text accurately with clear harakāt and proper classical tajwīd/articulation: ${text}`,
+      contents: trimmed,
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -57,11 +71,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Audio data missing in Gemini response' }, { status: 502 });
     }
 
-    return NextResponse.json({
+    const payload = {
       audioContent: base64Audio,
       mimeType,
       sampleRate: 24000,
-    });
+    };
+
+    // Cache server-side
+    serverAudioCache.set(trimmed, payload);
+
+    return NextResponse.json(payload);
   } catch (error: any) {
     console.warn('Gemini TTS endpoint error:', error?.message || error);
     return NextResponse.json({ error: error?.message || 'Gemini TTS failed' }, { status: 500 });

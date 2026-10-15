@@ -268,7 +268,7 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Generating Your Arabic Words...</span>
+              <span>Weaving Storyline & Crafting Words...</span>
             </>
           ) : (
             <>
@@ -279,8 +279,71 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
         </button>
       </form>
 
+      {/* ================= SKELETON LOADING ANIMATION ================= */}
+      {isLoading && (
+        <section className="space-y-8 pt-8 border-t border-[var(--border-subtle)] animate-fadeIn" aria-busy="true">
+          {/* Skeleton Storyline Header */}
+          <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
+              <div className="space-y-2.5 w-full max-w-md">
+                <div className="h-3 w-24 rounded-md skeleton-shimmer" />
+                <div className="h-7 w-3/4 rounded-lg skeleton-shimmer" />
+                <div className="h-4 w-full rounded-md skeleton-shimmer" />
+              </div>
+              <div className="h-10 w-36 rounded-xl skeleton-shimmer shrink-0" />
+            </div>
+            <div className="pt-2 flex items-center gap-2 text-xs text-[var(--accent-ochre)] font-medium">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Gemini is generating words with full harakāt, transliterations & context sentences...</span>
+            </div>
+          </div>
+
+          {/* Skeleton Word Rows */}
+          <div className="space-y-4">
+            <div className="h-3 w-32 rounded-md skeleton-shimmer" />
+
+            <div className="divide-y divide-[var(--border-subtle)] border-t border-b border-[var(--border-subtle)]">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="py-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-start px-3"
+                >
+                  {/* Left: Arabic word & root placeholder */}
+                  <div className="md:col-span-4 space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full skeleton-shimmer shrink-0" />
+                      <div className="h-9 w-28 rounded-lg skeleton-shimmer" />
+                    </div>
+                    <div className="h-3 w-20 rounded-md skeleton-shimmer ml-11" />
+                    <div className="h-3 w-24 rounded-md skeleton-shimmer ml-11" />
+                  </div>
+
+                  {/* Middle: English translation placeholder */}
+                  <div className="md:col-span-3 space-y-2">
+                    <div className="h-3 w-16 rounded-md skeleton-shimmer" />
+                    <div className="h-5 w-32 rounded-md skeleton-shimmer" />
+                    <div className="h-4 w-24 rounded-md skeleton-shimmer" />
+                  </div>
+
+                  {/* Right: Example sentence + transliteration placeholder */}
+                  <div className="md:col-span-5 space-y-2.5 pl-0 md:pl-4 border-l-0 md:border-l border-[var(--border-subtle)]">
+                    <div className="flex justify-between items-center">
+                      <div className="h-3 w-24 rounded-md skeleton-shimmer" />
+                      <div className="w-7 h-7 rounded-full skeleton-shimmer" />
+                    </div>
+                    <div className="h-7 w-5/6 rounded-lg skeleton-shimmer ml-auto" />
+                    <div className="h-3 w-4/6 rounded-md skeleton-shimmer" />
+                    <div className="h-3 w-3/5 rounded-md skeleton-shimmer" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Generated Word List */}
-      {generatedResult && (
+      {!isLoading && generatedResult && (
         <section className="space-y-8 pt-8 border-t border-[var(--border-subtle)] animate-fadeIn">
           {/* Situation Storyline Card */}
           <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--accent-ochre)]/40 space-y-3">
@@ -387,6 +450,11 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
                     <p className="font-arabic text-lg font-semibold text-[var(--ink-primary)] harakat-text text-right leading-loose">
                       {w.exampleArabic}
                     </p>
+                    {w.exampleTransliteration && (
+                      <p className="text-xs text-[var(--ink-muted)] font-mono">
+                        {w.exampleTransliteration}
+                      </p>
+                    )}
                     <p className="text-xs text-[var(--ink-secondary)] italic">
                       "{w.exampleEnglish}"
                     </p>
