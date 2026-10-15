@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Volume2, Loader2 } from 'lucide-react';
-import { base64ToUint8Array, pcmToWav } from '@/lib/audio-utils';
 
 interface AudioPronounceButtonProps {
   arabicText: string;
@@ -70,35 +69,25 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
       return;
     }
 
-    // Tier 1: Try Gemini 2.5 Flash TTS (gemini-2.5-flash-preview-tts with "Orus" voice)
+    // Tier 1: Try Google Translate Arabic TTS via /api/tts
     setIsLoadingTTS(true);
     try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: trimmedText }),
-      });
+      const audioUrl = `/api/tts?text=${encodeURIComponent(trimmedText)}`;
+      const res = await fetch(audioUrl);
 
       if (!res.ok) {
-        throw new Error('TTS API responded with error');
+        throw new Error(`TTS server responded with ${res.status}`);
       }
 
-      const data = await res.json();
-      if (!data.audioContent) {
-        throw new Error('No audio content returned');
-      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
 
-      // Convert raw 16-bit PCM bytes to playable WAV blob
-      const pcmBytes = base64ToUint8Array(data.audioContent);
-      const wavBlob = pcmToWav(pcmBytes, data.sampleRate || 24000);
-      const objectUrl = URL.createObjectURL(wavBlob);
-
-      // Cache for instant replays
+      // Cache for instant replays without network lag
       audioCache.set(trimmedText, objectUrl);
 
       playAudioBlobUrl(objectUrl);
     } catch (err) {
-      console.warn('Gemini TTS unavailable, using Web Speech API fallback:', err);
+      console.warn('Google Translate TTS unavailable, using browser Web Speech API fallback:', err);
       // Tier 2: Automatic fallback to Web Speech API
       speakWithWebSpeechFallback();
     } finally {

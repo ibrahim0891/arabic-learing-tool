@@ -80,6 +80,15 @@ export function mapSupabaseWordToModel(row: any): Word {
     repetitionCount: Number(row.repetition_count || 0),
     nextReviewDate: row.next_review_date || new Date().toISOString(),
     lastReviewedDate: row.last_reviewed_date,
+    additionalExamples: typeof row.additional_examples === 'string'
+      ? (() => { try { return JSON.parse(row.additional_examples); } catch (_) { return []; } })()
+      : Array.isArray(row.additional_examples)
+      ? row.additional_examples
+      : typeof row.additionalExamples === 'string'
+      ? (() => { try { return JSON.parse(row.additionalExamples); } catch (_) { return []; } })()
+      : Array.isArray(row.additionalExamples)
+      ? row.additionalExamples
+      : [],
   };
 }
 
@@ -112,6 +121,7 @@ export function mapWordModelToSupabase(word: Partial<Word>): any {
   if (word.repetitionCount !== undefined) row.repetition_count = word.repetitionCount;
   if (word.nextReviewDate !== undefined) row.next_review_date = word.nextReviewDate;
   if (word.lastReviewedDate !== undefined) row.last_reviewed_date = word.lastReviewedDate;
+  if (word.additionalExamples !== undefined) row.additional_examples = JSON.stringify(word.additionalExamples);
   return row;
 }
 
@@ -145,7 +155,43 @@ export const dataStore = {
 
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(mapSupabaseWordToModel);
+        const words = data.map(mapSupabaseWordToModel);
+        // Merge local SQLite additionalExamples if Supabase schema lacks the column
+        try {
+          const localWordsWithExamples = db
+            .prepare("SELECT id, arabic, additionalExamples FROM words WHERE additionalExamples IS NOT NULL AND additionalExamples != ''")
+            .all() as { id: string; arabic: string; additionalExamples: string }[];
+          
+          if (localWordsWithExamples && localWordsWithExamples.length > 0) {
+            const examplesById = new Map<string, any[]>();
+            const examplesByArabic = new Map<string, any[]>();
+
+            for (const item of localWordsWithExamples) {
+              try {
+                const parsed = JSON.parse(item.additionalExamples);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  examplesById.set(item.id, parsed);
+                  if (item.arabic) {
+                    const cleanArabic = item.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+                    examplesByArabic.set(cleanArabic, parsed);
+                  }
+                }
+              } catch (_) {}
+            }
+
+            for (const w of words) {
+              const cleanArabic = (w.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+              const localEx = examplesById.get(w.id) || examplesByArabic.get(cleanArabic);
+              if (localEx && (!w.additionalExamples || w.additionalExamples.length === 0)) {
+                w.additionalExamples = localEx;
+              }
+            }
+          }
+        } catch (mergeErr) {
+          console.error('Error merging local SQLite examples:', mergeErr);
+        }
+
+        return words;
       }
     } catch (err) {
       // Supabase error, fall through to SQLite
@@ -176,7 +222,8 @@ export const dataStore = {
       params.push(new Date().toISOString());
     }
     sql += ' ORDER BY dateAdded DESC';
-    return db.prepare(sql).all(...params) as Word[];
+    const rawRows = db.prepare(sql).all(...params) as any[];
+    return rawRows.map(mapSupabaseWordToModel);
   },
 
   // Save single word
@@ -291,54 +338,101 @@ export const dataStore = {
   // Update single word
   async updateWord(id: string, updates: Partial<Word>): Promise<Word | null> {
     const supabasePayload = mapWordModelToSupabase(updates);
+    let supabaseUpdatedData: any = null;
+
     try {
       const { data, error } = await supabase.from('words').update(supabasePayload).eq('id', id).select().single();
       if (!error && data) {
-        // Also update local SQLite
-        try {
-          db.prepare(`
-            UPDATE words SET
-              timesTested = COALESCE(?, timesTested),
-              timesCorrect = COALESCE(?, timesCorrect),
-              timesIncorrect = COALESCE(?, timesIncorrect),
-              memoryStatus = COALESCE(?, memoryStatus),
-              easeFactor = COALESCE(?, easeFactor),
-              intervalDays = COALESCE(?, intervalDays),
-              repetitionCount = COALESCE(?, repetitionCount),
-              nextReviewDate = COALESCE(?, nextReviewDate),
-              lastReviewedDate = COALESCE(?, lastReviewedDate)
-            WHERE id = ?
-          `).run(
-            updates.timesTested, updates.timesCorrect, updates.timesIncorrect, updates.memoryStatus,
-            updates.easeFactor, updates.intervalDays, updates.repetitionCount, updates.nextReviewDate,
-            updates.lastReviewedDate, id
-          );
-        } catch (_) {}
-        return mapSupabaseWordToModel(data);
+        supabaseUpdatedData = data;
+      } else if (error && supabasePayload.additional_examples) {
+        // If Supabase table doesn't have additional_examples column yet, update without that column
+        const strippedPayload = { ...supabasePayload };
+        delete strippedPayload.additional_examples;
+        const retryRes = await supabase.from('words').update(strippedPayload).eq('id', id).select().single();
+        if (!retryRes.error && retryRes.data) {
+          supabaseUpdatedData = retryRes.data;
+        }
       }
     } catch (err) {}
 
-    // Fallback SQLite
-    db.prepare(`
-      UPDATE words SET
-        timesTested = COALESCE(?, timesTested),
-        timesCorrect = COALESCE(?, timesCorrect),
-        timesIncorrect = COALESCE(?, timesIncorrect),
-        memoryStatus = COALESCE(?, memoryStatus),
-        easeFactor = COALESCE(?, easeFactor),
-        intervalDays = COALESCE(?, intervalDays),
-        repetitionCount = COALESCE(?, repetitionCount),
-        nextReviewDate = COALESCE(?, nextReviewDate),
-        lastReviewedDate = COALESCE(?, lastReviewedDate),
-        arabic = COALESCE(?, arabic),
-        english = COALESCE(?, english)
-      WHERE id = ?
-    `).run(
-      updates.timesTested, updates.timesCorrect, updates.timesIncorrect, updates.memoryStatus,
-      updates.easeFactor, updates.intervalDays, updates.repetitionCount, updates.nextReviewDate,
-      updates.lastReviewedDate, updates.arabic, updates.english, id
-    );
-    return db.prepare('SELECT * FROM words WHERE id = ?').get(id) as Word;
+    // Always update and persist to local SQLite
+    try {
+      const existingLocal = db.prepare('SELECT id FROM words WHERE id = ?').get(id);
+      if (!existingLocal) {
+        // If word is not in local SQLite yet (e.g. was loaded from Supabase), fetch and insert it
+        let baseData = supabaseUpdatedData;
+        if (!baseData) {
+          const { data } = await supabase.from('words').select('*').eq('id', id).single();
+          baseData = data;
+        }
+        if (baseData) {
+          db.prepare(`
+            INSERT OR REPLACE INTO words (
+              id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
+              exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
+              setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
+              easeFactor, intervalDays, repetitionCount, nextReviewDate, lastReviewedDate, additionalExamples
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            baseData.id, baseData.arabic, baseData.transliteration || '', baseData.english, baseData.word_type || 'noun',
+            baseData.present_tense_i || null, baseData.present_tense_he || null, baseData.root || null,
+            baseData.example_arabic || '', baseData.example_transliteration || '', baseData.example_english || '',
+            baseData.explanation || '', baseData.topic || 'daily life', baseData.difficulty || 'beginner',
+            baseData.set_id || null, baseData.set_name || null, baseData.date_added || new Date().toISOString(),
+            baseData.times_tested || 0, baseData.times_correct || 0, baseData.times_incorrect || 0,
+            baseData.memory_status || 'new', baseData.ease_factor || 2.5, baseData.interval_days || 0,
+            baseData.repetition_count || 0, baseData.next_review_date || new Date().toISOString(),
+            baseData.last_reviewed_date || null,
+            updates.additionalExamples ? JSON.stringify(updates.additionalExamples) : null
+          );
+        }
+      } else {
+        db.prepare(`
+          UPDATE words SET
+            timesTested = COALESCE(?, timesTested),
+            timesCorrect = COALESCE(?, timesCorrect),
+            timesIncorrect = COALESCE(?, timesIncorrect),
+            memoryStatus = COALESCE(?, memoryStatus),
+            easeFactor = COALESCE(?, easeFactor),
+            intervalDays = COALESCE(?, intervalDays),
+            repetitionCount = COALESCE(?, repetitionCount),
+            nextReviewDate = COALESCE(?, nextReviewDate),
+            lastReviewedDate = COALESCE(?, lastReviewedDate),
+            arabic = COALESCE(?, arabic),
+            english = COALESCE(?, english),
+            additionalExamples = COALESCE(?, additionalExamples)
+          WHERE id = ?
+        `).run(
+          updates.timesTested, updates.timesCorrect, updates.timesIncorrect, updates.memoryStatus,
+          updates.easeFactor, updates.intervalDays, updates.repetitionCount, updates.nextReviewDate,
+          updates.lastReviewedDate, updates.arabic, updates.english,
+          updates.additionalExamples ? JSON.stringify(updates.additionalExamples) : null,
+          id
+        );
+      }
+    } catch (sqliteErr) {
+      console.error('Error updating SQLite word:', sqliteErr);
+    }
+
+    // Return the updated word with additionalExamples merged
+    const localRow = db.prepare('SELECT * FROM words WHERE id = ?').get(id);
+    if (localRow) {
+      const wordModel = mapSupabaseWordToModel(localRow);
+      if (updates.additionalExamples) {
+        wordModel.additionalExamples = updates.additionalExamples;
+      }
+      return wordModel;
+    }
+
+    if (supabaseUpdatedData) {
+      const wordModel = mapSupabaseWordToModel(supabaseUpdatedData);
+      if (updates.additionalExamples) {
+        wordModel.additionalExamples = updates.additionalExamples;
+      }
+      return wordModel;
+    }
+
+    return null;
   },
 
   // Delete word

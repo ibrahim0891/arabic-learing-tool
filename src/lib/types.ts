@@ -1,3 +1,12 @@
+export interface ExampleSentence {
+  id: string;
+  arabic: string;
+  transliteration: string;
+  english: string;
+  scenario?: string; // e.g. "Formal/Business", "Casual Conversation", "Grammar Variation", etc.
+  createdAt?: string;
+}
+
 export interface Word {
   id: string;
   arabic: string; // with full diacritics / harakat
@@ -11,6 +20,7 @@ export interface Word {
   exampleTransliteration: string;
   exampleEnglish: string;
   explanation: string;
+  additionalExamples?: ExampleSentence[]; // Additional AI-generated sentences
   topic: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   setId?: string;

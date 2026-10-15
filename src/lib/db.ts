@@ -61,6 +61,7 @@ function getDatabaseInstance() {
         repetitionCount INTEGER NOT NULL DEFAULT 0,
         nextReviewDate TEXT NOT NULL,
         lastReviewedDate TEXT,
+        additionalExamples TEXT,
         FOREIGN KEY(setId) REFERENCES word_sets(id) ON DELETE SET NULL
       );
 
@@ -111,6 +112,11 @@ function getDatabaseInstance() {
         FOREIGN KEY(wordId) REFERENCES words(id) ON DELETE CASCADE
       );
     `);
+
+    // Safe migration for existing SQLite files
+    try {
+      db.exec("ALTER TABLE words ADD COLUMN additionalExamples TEXT;");
+    } catch (_) {}
 
     return db;
   } catch (err) {

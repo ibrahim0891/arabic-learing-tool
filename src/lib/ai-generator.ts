@@ -391,14 +391,11 @@ Respond ONLY with a valid JSON object matching this exact schema:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.7-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
         temperature: 0.7,
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
       },
     });
 

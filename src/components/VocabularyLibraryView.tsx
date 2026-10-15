@@ -11,10 +11,12 @@ import {
   AlertCircle,
   Loader2,
   CheckSquare,
-  Square
+  Square,
+  BookOpen
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
+import { WordExamplesSheet } from './WordExamplesSheet';
 
 interface VocabularyLibraryProps {
   onWordCountChange?: () => void;
@@ -29,6 +31,9 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('all');
+
+  // Examples side sheet state
+  const [selectedWordForExamples, setSelectedWordForExamples] = useState<Word | null>(null);
 
   // Multiple selection state
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
@@ -456,7 +461,27 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWordForExamples(w)}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)] hover:text-[#121316] transition cursor-pointer flex items-center gap-1.5"
+                      title={
+                        (w.additionalExamples && w.additionalExamples.length > 0)
+                          ? `${1 + w.additionalExamples.length} example sentences available (${w.additionalExamples.length} AI generated)`
+                          : '1 example sentence available. Click to view & generate more with AI'
+                      }
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>Examples</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        w.additionalExamples && w.additionalExamples.length > 0
+                          ? 'bg-[var(--accent-ochre)] text-[#121316]'
+                          : 'bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)]'
+                      }`}>
+                        {1 + (w.additionalExamples ? w.additionalExamples.length : 0)}
+                      </span>
+                    </button>
                     <button
                       onClick={() => handleOpenEdit(w)}
                       className="p-1.5 text-[var(--ink-muted)] hover:text-[var(--ink-primary)] hover:bg-[var(--accent-ochre-dim)] rounded-lg transition cursor-pointer"
@@ -696,6 +721,22 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
             </div>
           </div>
         </div>,
+        document.body
+      )}
+
+      {/* Word Examples Side Sheet (3/4 width) */}
+      {selectedWordForExamples && mounted && typeof document !== 'undefined' && createPortal(
+        <WordExamplesSheet
+          word={selectedWordForExamples}
+          isOpen={Boolean(selectedWordForExamples)}
+          onClose={() => setSelectedWordForExamples(null)}
+          onWordUpdated={(updated) => {
+            setWords((prev) =>
+              prev.map((w) => (w.id === updated.id ? { ...w, ...updated } : w))
+            );
+            setSelectedWordForExamples(updated);
+          }}
+        />,
         document.body
       )}
     </div>
