@@ -240,7 +240,7 @@ export const ConversationPracticeView: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="font-semibold text-sm sm:text-base text-[var(--ink-primary)] truncate tracking-tight">
-                {activeConversation ? activeConversation.title : 'White Dialect Dialogues'}
+                {activeConversation ? activeConversation.title : 'Spoken Arabic Dialogues'}
               </h1>
               {activeConversation && (
                 <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2 py-0.5 rounded-full border border-[var(--accent-ochre)]/25 font-semibold">
@@ -255,8 +255,6 @@ export const ConversationPracticeView: React.FC = () => {
                   <span className="font-medium text-[var(--ink-secondary)]">{activeConversation.speakers.join(' & ')}</span>
                   <span>•</span>
                   <span className="font-mono">{activeConversation.messages.length} lines</span>
-                  <span>•</span>
-                  <span className="text-[var(--accent-ochre)] font-arabic">اللَّهْجَة الْبَيْضَاء</span>
                 </>
               ) : (
                 'Select an existing dialogue or generate a new conversation'
@@ -457,7 +455,6 @@ export const ConversationPracticeView: React.FC = () => {
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] text-[var(--ink-muted)] shadow-xs">
                     <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
                     Scenario: <strong className="text-[var(--ink-primary)] font-semibold">{activeConversation.topic}</strong>
-                    <span className="text-[var(--accent-ochre)] font-arabic font-medium">• اللَّهْجَة الْبَيْضَاء</span>
                   </span>
                 </div>
 
@@ -565,7 +562,7 @@ export const ConversationPracticeView: React.FC = () => {
                   No conversation active
                 </h3>
                 <p className="text-xs text-[var(--ink-muted)] leading-relaxed">
-                  Select a past dialogue from the left history or create a brand new conversation in authentic White Dialect.
+                  Select a past dialogue from the left history or create a brand new conversation.
                 </p>
               </div>
               <button
@@ -597,7 +594,7 @@ export const ConversationPracticeView: React.FC = () => {
                     Create New Dialogue
                   </h3>
                   <p className="text-[11px] text-[var(--ink-muted)]">
-                    White Dialect (اللَّهْجَة الْبَيْضَاء) with full diacritics
+                    Natural spoken Arabic with full diacritics
                   </p>
                 </div>
               </div>
@@ -745,8 +742,8 @@ export const ConversationPracticeView: React.FC = () => {
                 <Info className="w-4 h-4 shrink-0 text-[var(--accent-ochre)] mt-0.5" />
                 <span>
                   {includeKnownWords
-                    ? 'Gemini 3.5 Flash Lite selectively integrates relevant known words into natural White Dialect dialogue with tashkeel.'
-                    : 'Gemini 3.5 Flash Lite will generate natural White Dialect dialogue with tashkeel without Word Bank constraints.'}
+                    ? 'Gemini 3.5 Flash Lite selectively integrates relevant known words into natural spoken dialogue with tashkeel.'
+                    : 'Gemini 3.5 Flash Lite will generate natural spoken dialogue with tashkeel without Word Bank constraints.'}
                 </span>
               </div>
             </div>

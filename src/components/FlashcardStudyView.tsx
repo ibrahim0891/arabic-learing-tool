@@ -604,14 +604,13 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                         : 'border-transparent hover:bg-[var(--bg-surface-elevated)] text-[var(--ink-secondary)]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate min-w-0">
-                      <span className="w-4 text-center font-mono text-[10px] text-[var(--ink-muted)] shrink-0">
+                    <div className="flex items-center gap-2.5 truncate min-w-0">
+                      <span className="w-5 text-center font-mono text-[10px] text-[var(--ink-muted)] shrink-0">
                         {idx + 1}
                       </span>
-                      <span dir="rtl" className="font-arabic text-sm text-[var(--accent-ochre)] harakat-text font-bold shrink-0">
+                      <span dir="rtl" className="font-arabic text-base text-[var(--ink-primary)] harakat-text font-semibold truncate">
                         {w.arabic}
                       </span>
-                      <span className="truncate text-xs opacity-90">{w.english}</span>
                     </div>
 
                     <span className="text-[10px] uppercase font-semibold text-[var(--ink-muted)] px-1.5 py-0.5 rounded bg-[var(--border-subtle)] shrink-0 whitespace-nowrap">
