@@ -217,7 +217,7 @@ export const ConversationPracticeView: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-[var(--bg-surface)] overflow-hidden font-sans">
+    <div className="w-full h-full flex flex-col bg-[var(--bg-surface)] overflow-hidden font-sans sm:rounded-2xl sm:border border-[var(--border-subtle)] sm:shadow-xs">
       
       {/* Top Messenger Header Bar (Lively & Polished) */}
       <header className="h-14 px-4 sm:px-6 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] flex items-center justify-between gap-3 shrink-0 shadow-xs">
@@ -448,7 +448,8 @@ export const ConversationPracticeView: React.FC = () => {
           {activeConversation ? (
             <div className="flex-1 flex flex-col overflow-hidden relative z-0">
               {/* Scrollable Chat Feed Area */}
-              <div className="flex-1 p-4 sm:p-6 space-y-4 overflow-y-auto">
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                <div className="max-w-4xl mx-auto w-full space-y-4">
                 
                 {/* Topic context pill */}
                 <div className="text-center py-1">
@@ -540,7 +541,8 @@ export const ConversationPracticeView: React.FC = () => {
                     </div>
                   );
                 })}
-                <div ref={chatBottomRef} />
+                  <div ref={chatBottomRef} />
+                </div>
               </div>
 
               {/* Chat Bottom Helper Banner */}

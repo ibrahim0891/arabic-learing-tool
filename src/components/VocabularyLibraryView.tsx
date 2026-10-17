@@ -480,7 +480,7 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                     <button
                       type="button"
                       onClick={() => router.push(`/library/${w.id}`)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)] hover:text-[#121316] transition cursor-pointer flex items-center gap-1.5"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] hover:bg-[#9a5d16] hover:text-white transition cursor-pointer flex items-center gap-1.5"
                       title="View word details, 6-10 root family words, and contextual examples"
                     >
                       <Layers className="w-3.5 h-3.5" />

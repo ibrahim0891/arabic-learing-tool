@@ -27,6 +27,12 @@ export function mapSupabaseDraftToModel(row: any): DraftWord {
     difficulty: row.difficulty || 'beginner',
     createdAt: row.created_at || new Date().toISOString(),
     sourceTopic: row.source_topic,
+    pluralArabic: row.plural_arabic ?? row.pluralArabic,
+    pluralTransliteration: row.plural_transliteration ?? row.pluralTransliteration,
+    pluralEnglish: row.plural_english ?? row.pluralEnglish,
+    oppositeArabic: row.opposite_arabic ?? row.oppositeArabic,
+    oppositeTransliteration: row.opposite_transliteration ?? row.oppositeTransliteration,
+    oppositeEnglish: row.opposite_english ?? row.oppositeEnglish,
   };
 }
 
@@ -48,6 +54,12 @@ export function mapDraftModelToSupabase(draft: Partial<DraftWord>): any {
     difficulty: draft.difficulty || 'beginner',
     created_at: draft.createdAt || new Date().toISOString(),
     source_topic: draft.sourceTopic || null,
+    plural_arabic: draft.pluralArabic || null,
+    plural_transliteration: draft.pluralTransliteration || null,
+    plural_english: draft.pluralEnglish || null,
+    opposite_arabic: draft.oppositeArabic || null,
+    opposite_transliteration: draft.oppositeTransliteration || null,
+    opposite_english: draft.oppositeEnglish || null,
   };
 }
 
@@ -70,6 +82,12 @@ export function mapSupabaseWordToModel(row: any): Word {
     difficulty: row.difficulty || 'beginner',
     setId: row.set_id,
     setName: row.set_name,
+    pluralArabic: row.plural_arabic ?? row.pluralArabic,
+    pluralTransliteration: row.plural_transliteration ?? row.pluralTransliteration,
+    pluralEnglish: row.plural_english ?? row.pluralEnglish,
+    oppositeArabic: row.opposite_arabic ?? row.oppositeArabic,
+    oppositeTransliteration: row.opposite_transliteration ?? row.oppositeTransliteration,
+    oppositeEnglish: row.opposite_english ?? row.oppositeEnglish,
     dateAdded: row.date_added || new Date().toISOString(),
     timesTested: Number(row.times_tested || 0),
     timesCorrect: Number(row.times_correct || 0),
@@ -120,6 +138,12 @@ export function mapWordModelToSupabase(word: Partial<Word>): any {
   if (word.difficulty !== undefined) row.difficulty = word.difficulty;
   if (word.setId !== undefined) row.set_id = word.setId;
   if (word.setName !== undefined) row.set_name = word.setName;
+  if (word.pluralArabic !== undefined) row.plural_arabic = word.pluralArabic;
+  if (word.pluralTransliteration !== undefined) row.plural_transliteration = word.pluralTransliteration;
+  if (word.pluralEnglish !== undefined) row.plural_english = word.pluralEnglish;
+  if (word.oppositeArabic !== undefined) row.opposite_arabic = word.oppositeArabic;
+  if (word.oppositeTransliteration !== undefined) row.opposite_transliteration = word.oppositeTransliteration;
+  if (word.oppositeEnglish !== undefined) row.opposite_english = word.oppositeEnglish;
   if (word.dateAdded !== undefined) row.date_added = word.dateAdded;
   if (word.timesTested !== undefined) row.times_tested = word.timesTested;
   if (word.timesCorrect !== undefined) row.times_correct = word.timesCorrect;
@@ -246,6 +270,38 @@ export const dataStore = {
               }
             }
           } catch (_) {}
+
+          // 4. Merge linguistic forms (plural and opposite) from word_linguistic_forms table
+          try {
+            const formRows = db.prepare("SELECT * FROM word_linguistic_forms").all() as any[];
+            const formsById = new Map<string, any>();
+            const formsByArabic = new Map<string, any>();
+
+            for (const item of formRows) {
+              if (item.word_id) formsById.set(item.word_id, item);
+              if (item.arabic) {
+                const cleanArabic = item.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+                formsByArabic.set(cleanArabic, item);
+              }
+            }
+
+            for (const w of words) {
+              const cleanArabic = (w.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+              const localForm = formsById.get(w.id) || formsByArabic.get(cleanArabic);
+              if (localForm) {
+                if (!w.pluralArabic && localForm.plural_arabic) {
+                  w.pluralArabic = localForm.plural_arabic;
+                  w.pluralTransliteration = localForm.plural_transliteration;
+                  w.pluralEnglish = localForm.plural_english;
+                }
+                if (!w.oppositeArabic && localForm.opposite_arabic) {
+                  w.oppositeArabic = localForm.opposite_arabic;
+                  w.oppositeTransliteration = localForm.opposite_transliteration;
+                  w.oppositeEnglish = localForm.opposite_english;
+                }
+              }
+            }
+          } catch (_) {}
         } catch (mergeErr) {
           console.error('Error merging local SQLite examples:', mergeErr);
         }
@@ -298,8 +354,9 @@ export const dataStore = {
               id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
               exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
               setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
-              easeFactor, intervalDays, repetitionCount, nextReviewDate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              easeFactor, intervalDays, repetitionCount, nextReviewDate,
+              pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             word.id, word.arabic, word.transliteration || '', word.english, word.wordType || 'noun',
             word.presentTenseI || null, word.presentTenseHe || null, word.root || null,
@@ -308,7 +365,9 @@ export const dataStore = {
             word.setId || null, word.setName || null, word.dateAdded || new Date().toISOString(),
             word.timesTested || 0, word.timesCorrect || 0, word.timesIncorrect || 0,
             word.memoryStatus || 'new', word.easeFactor || 2.5, word.intervalDays || 0,
-            word.repetitionCount || 0, word.nextReviewDate || new Date().toISOString()
+            word.repetitionCount || 0, word.nextReviewDate || new Date().toISOString(),
+            word.pluralArabic || null, word.pluralTransliteration || null, word.pluralEnglish || null,
+            word.oppositeArabic || null, word.oppositeTransliteration || null, word.oppositeEnglish || null
           );
         } catch (_) {}
         return mapSupabaseWordToModel(data);
@@ -321,8 +380,9 @@ export const dataStore = {
         id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
         exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
         setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
-        easeFactor, intervalDays, repetitionCount, nextReviewDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        easeFactor, intervalDays, repetitionCount, nextReviewDate,
+        pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       word.id, word.arabic, word.transliteration || '', word.english, word.wordType || 'noun',
       word.presentTenseI || null, word.presentTenseHe || null, word.root || null,
@@ -331,7 +391,9 @@ export const dataStore = {
       word.setId || null, word.setName || null, word.dateAdded || new Date().toISOString(),
       word.timesTested || 0, word.timesCorrect || 0, word.timesIncorrect || 0,
       word.memoryStatus || 'new', word.easeFactor || 2.5, word.intervalDays || 0,
-      word.repetitionCount || 0, word.nextReviewDate || new Date().toISOString()
+      word.repetitionCount || 0, word.nextReviewDate || new Date().toISOString(),
+      word.pluralArabic || null, word.pluralTransliteration || null, word.pluralEnglish || null,
+      word.oppositeArabic || null, word.oppositeTransliteration || null, word.oppositeEnglish || null
     );
     return db.prepare('SELECT * FROM words WHERE id = ?').get(word.id) as Word;
   },
@@ -375,21 +437,7 @@ export const dataStore = {
       set.id, set.title, set.themeContext, set.topic, set.difficulty, set.createdAt, words.length
     );
     for (const w of words) {
-      db.prepare(`
-        INSERT OR REPLACE INTO words (
-          id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
-          exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
-          setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
-          easeFactor, intervalDays, repetitionCount, nextReviewDate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        w.id, w.arabic, w.transliteration || '', w.english, w.wordType || 'noun',
-        w.presentTenseI || null, w.presentTenseHe || null, w.root || null,
-        w.exampleArabic || '', w.exampleTransliteration || '', w.exampleEnglish || '',
-        w.explanation || '', w.topic || 'daily life', w.difficulty || 'beginner',
-        w.setId || null, w.setName || null, w.dateAdded || new Date().toISOString(),
-        0, 0, 0, 'new', 2.5, 0, 0, w.nextReviewDate || new Date().toISOString()
-      );
+      await this.insertWord(w);
     }
     return { savedCount: words.length };
   },
@@ -431,6 +479,36 @@ export const dataStore = {
       }
     }
 
+    // 2b. Persist linguistic forms (plural & opposite) to dedicated table
+    if (
+      updates.pluralArabic !== undefined ||
+      updates.oppositeArabic !== undefined ||
+      updates.pluralEnglish !== undefined ||
+      updates.oppositeEnglish !== undefined
+    ) {
+      try {
+        const cleanArabic = (updates.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+        db.prepare(`
+          INSERT OR REPLACE INTO word_linguistic_forms (
+            word_id, arabic, plural_arabic, plural_transliteration, plural_english,
+            opposite_arabic, opposite_transliteration, opposite_english, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          id,
+          cleanArabic,
+          updates.pluralArabic || null,
+          updates.pluralTransliteration || null,
+          updates.pluralEnglish || null,
+          updates.oppositeArabic || null,
+          updates.oppositeTransliteration || null,
+          updates.oppositeEnglish || null,
+          new Date().toISOString()
+        );
+      } catch (formErr) {
+        console.error('Error saving to word_linguistic_forms:', formErr);
+      }
+    }
+
     // 3. Always update and persist to local SQLite words table
     try {
       const existingLocal = db.prepare('SELECT id, arabic FROM words WHERE id = ?').get(id) as any;
@@ -446,8 +524,9 @@ export const dataStore = {
               id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
               exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
               setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
-              easeFactor, intervalDays, repetitionCount, nextReviewDate, lastReviewedDate, additionalExamples
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              easeFactor, intervalDays, repetitionCount, nextReviewDate, lastReviewedDate, additionalExamples,
+              pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             baseData.id, baseData.arabic, baseData.transliteration || '', baseData.english, baseData.word_type || baseData.wordType || 'noun',
             baseData.present_tense_i ?? baseData.presentTenseI ?? null, baseData.present_tense_he ?? baseData.presentTenseHe ?? null, baseData.root || null,
@@ -458,7 +537,13 @@ export const dataStore = {
             baseData.memory_status ?? baseData.memoryStatus ?? 'new', baseData.ease_factor ?? baseData.easeFactor ?? 2.5, baseData.interval_days ?? baseData.intervalDays ?? 0,
             baseData.repetition_count ?? baseData.repetitionCount ?? 0, baseData.next_review_date ?? baseData.nextReviewDate ?? new Date().toISOString(),
             baseData.last_reviewed_date ?? baseData.lastReviewedDate ?? null,
-            updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null
+            updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null,
+            updates.pluralArabic ?? baseData.plural_arabic ?? null,
+            updates.pluralTransliteration ?? baseData.plural_transliteration ?? null,
+            updates.pluralEnglish ?? baseData.plural_english ?? null,
+            updates.oppositeArabic ?? baseData.opposite_arabic ?? null,
+            updates.oppositeTransliteration ?? baseData.opposite_transliteration ?? null,
+            updates.oppositeEnglish ?? baseData.opposite_english ?? null
           );
         }
       } else {
@@ -475,13 +560,21 @@ export const dataStore = {
             lastReviewedDate = COALESCE(?, lastReviewedDate),
             arabic = COALESCE(?, arabic),
             english = COALESCE(?, english),
-            additionalExamples = COALESCE(?, additionalExamples)
+            additionalExamples = COALESCE(?, additionalExamples),
+            pluralArabic = COALESCE(?, pluralArabic),
+            pluralTransliteration = COALESCE(?, pluralTransliteration),
+            pluralEnglish = COALESCE(?, pluralEnglish),
+            oppositeArabic = COALESCE(?, oppositeArabic),
+            oppositeTransliteration = COALESCE(?, oppositeTransliteration),
+            oppositeEnglish = COALESCE(?, oppositeEnglish)
           WHERE id = ?
         `).run(
           updates.timesTested ?? null, updates.timesCorrect ?? null, updates.timesIncorrect ?? null, updates.memoryStatus ?? null,
           updates.easeFactor ?? null, updates.intervalDays ?? null, updates.repetitionCount ?? null, updates.nextReviewDate ?? null,
           updates.lastReviewedDate ?? null, updates.arabic ?? null, updates.english ?? null,
           updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null,
+          updates.pluralArabic ?? null, updates.pluralTransliteration ?? null, updates.pluralEnglish ?? null,
+          updates.oppositeArabic ?? null, updates.oppositeTransliteration ?? null, updates.oppositeEnglish ?? null,
           id
         );
       }
@@ -703,6 +796,12 @@ export const dataStore = {
         difficulty: (w.difficulty as any) || 'beginner',
         createdAt: nowIso,
         sourceTopic: w.sourceTopic || w.topic,
+        pluralArabic: w.pluralArabic,
+        pluralTransliteration: w.pluralTransliteration,
+        pluralEnglish: w.pluralEnglish,
+        oppositeArabic: w.oppositeArabic,
+        oppositeTransliteration: w.oppositeTransliteration,
+        oppositeEnglish: w.oppositeEnglish,
       };
       newDrafts.push(draftItem);
     }
@@ -723,15 +822,18 @@ export const dataStore = {
         INSERT OR REPLACE INTO draft_words (
           id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
           exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
-          createdAt, sourceTopic
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          createdAt, sourceTopic,
+          pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const d of newDrafts) {
         insert.run(
           d.id, d.arabic, d.transliteration, d.english, d.wordType,
           d.presentTenseI || null, d.presentTenseHe || null, d.root || null,
           d.exampleArabic, d.exampleTransliteration, d.exampleEnglish, d.explanation,
-          d.topic, d.difficulty, d.createdAt, d.sourceTopic || null
+          d.topic, d.difficulty, d.createdAt, d.sourceTopic || null,
+          d.pluralArabic || null, d.pluralTransliteration || null, d.pluralEnglish || null,
+          d.oppositeArabic || null, d.oppositeTransliteration || null, d.oppositeEnglish || null
         );
       }
     } catch (_) {}

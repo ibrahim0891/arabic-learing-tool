@@ -68,6 +68,13 @@ export interface Word {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   setId?: string;
   setName?: string;
+  // Plural and Opposite linguistic forms
+  pluralArabic?: string;
+  pluralTransliteration?: string;
+  pluralEnglish?: string;
+  oppositeArabic?: string;
+  oppositeTransliteration?: string;
+  oppositeEnglish?: string;
   dateAdded: string; // ISO string
   timesTested: number;
   timesCorrect: number;
@@ -94,6 +101,12 @@ export interface DraftWord {
   exampleTransliteration: string;
   exampleEnglish: string;
   explanation: string;
+  pluralArabic?: string;
+  pluralTransliteration?: string;
+  pluralEnglish?: string;
+  oppositeArabic?: string;
+  oppositeTransliteration?: string;
+  oppositeEnglish?: string;
   topic: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   createdAt: string;

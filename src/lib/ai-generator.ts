@@ -368,6 +368,9 @@ CRITICAL LEARNING RULES:
 4. Reuse words across example sentences so the learner sees how they connect in a realistic conversational story.
 5. Provide accurate English translations, realistic spoken phonetic transliterations for BOTH the individual word (transliteration) AND the full example sentence (exampleTransliteration), and insightful usage explanations.
 6. MANDATORY: "exampleTransliteration" MUST NOT be empty or omitted. It must provide the complete Romanized pronunciation of the example sentence.
+7. LINGUISTIC FORMS (PLURAL & OPPOSITE):
+   - For NOUNS and applicable ADJECTIVES: Provide the plural form (pluralArabic with full diacritics, pluralTransliteration, pluralEnglish). If the word does not have a natural plural, set these to null.
+   - For ADJECTIVES, VERBS, and CONTRASTING NOUNS: Provide the antonym / opposite word (oppositeArabic with full diacritics, oppositeTransliteration, oppositeEnglish). If no direct opposite exists, set these to null.
 
 ${excludeSection}
 ${revisionSection}
@@ -385,6 +388,12 @@ Respond ONLY with a valid JSON object matching this exact schema:
       "presentTenseI": "Present tense I form if verb, or null",
       "presentTenseHe": "Present tense he form if verb, or null",
       "root": "3-letter root or null",
+      "pluralArabic": "Plural in Arabic with full diacritics, or null if not applicable",
+      "pluralTransliteration": "Transliteration of plural, or null",
+      "pluralEnglish": "English of plural, or null",
+      "oppositeArabic": "Opposite / antonym in Arabic with full diacritics, or null if not applicable",
+      "oppositeTransliteration": "Transliteration of opposite, or null",
+      "oppositeEnglish": "English of opposite, or null",
       "exampleArabic": "A natural Arabic sentence with full diacritics using the word",
       "exampleTransliteration": "Transliteration of the example sentence",
       "exampleEnglish": "English translation of the example sentence",

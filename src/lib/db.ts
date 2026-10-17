@@ -141,6 +141,19 @@ function getDatabaseInstance() {
         updatedAt TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS word_linguistic_forms (
+        word_id TEXT PRIMARY KEY,
+        arabic TEXT,
+        plural_arabic TEXT,
+        plural_transliteration TEXT,
+        plural_english TEXT,
+        opposite_arabic TEXT,
+        opposite_transliteration TEXT,
+        opposite_english TEXT,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_word_linguistic_forms_arabic ON word_linguistic_forms(arabic);
+
       CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -154,12 +167,28 @@ function getDatabaseInstance() {
     `);
 
     // Safe migration for existing SQLite files
-    try {
-      db.exec("ALTER TABLE words ADD COLUMN additionalExamples TEXT;");
-    } catch (_) {}
-    try {
-      db.exec("ALTER TABLE words ADD COLUMN rootFamily TEXT;");
-    } catch (_) {}
+    const safeMigrations = [
+      "ALTER TABLE words ADD COLUMN additionalExamples TEXT;",
+      "ALTER TABLE words ADD COLUMN rootFamily TEXT;",
+      "ALTER TABLE words ADD COLUMN pluralArabic TEXT;",
+      "ALTER TABLE words ADD COLUMN pluralTransliteration TEXT;",
+      "ALTER TABLE words ADD COLUMN pluralEnglish TEXT;",
+      "ALTER TABLE words ADD COLUMN oppositeArabic TEXT;",
+      "ALTER TABLE words ADD COLUMN oppositeTransliteration TEXT;",
+      "ALTER TABLE words ADD COLUMN oppositeEnglish TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN pluralArabic TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN pluralTransliteration TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN pluralEnglish TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN oppositeArabic TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN oppositeTransliteration TEXT;",
+      "ALTER TABLE draft_words ADD COLUMN oppositeEnglish TEXT;",
+    ];
+
+    for (const sql of safeMigrations) {
+      try {
+        db.exec(sql);
+      } catch (_) {}
+    }
 
     return db;
   } catch (err) {

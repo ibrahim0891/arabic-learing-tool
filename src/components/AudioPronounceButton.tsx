@@ -133,7 +133,7 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
         label ? 'rounded-full px-3 py-1 font-medium' : 'rounded-full'
       } ${
         isPlaying
-          ? 'bg-[var(--accent-ochre)] text-[#121316] scale-105 shadow-md ring-2 ring-[var(--accent-ochre)]/40'
+          ? 'bg-[#9a5d16] text-white scale-105 shadow-md ring-2 ring-[#9a5d16]/40'
           : 'bg-[var(--bg-surface-elevated)] hover:bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] border border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]'
       } ${sizeClasses} ${className}`}
       title={buttonTitle}

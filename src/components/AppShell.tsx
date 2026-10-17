@@ -270,7 +270,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </header>
 
       {/* Main Viewport */}
-      <main className={`flex-1 min-h-0 w-full ${isConversationsPage ? 'p-0 flex flex-col overflow-hidden' : 'container-max py-8 sm:py-10'}`}>
+      <main className={`flex-1 min-h-0 w-full ${isConversationsPage ? 'container-max max-sm:px-0 flex flex-col overflow-hidden py-2 sm:py-4' : 'container-max py-8 sm:py-10'}`}>
         {children}
       </main>
 

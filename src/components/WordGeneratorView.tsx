@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Check,
@@ -9,7 +9,18 @@ import {
   BookmarkPlus,
   ArrowRight,
   Info,
-  Inbox
+  Inbox,
+  Home,
+  Coffee,
+  Plane,
+  Briefcase,
+  Laptop,
+  Smile,
+  PenTool,
+  Sliders,
+  CheckCircle2,
+  BookOpen,
+  Volume2
 } from 'lucide-react';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { DraftsManager } from './DraftsManager';
@@ -40,6 +51,7 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
   // Switch between AI Generator and Drafts collection
   const [activeTab, setActiveTab] = useState<'generate' | 'drafts'>('generate');
   const [draftsVersion, setDraftsVersion] = useState<number>(0);
+  const [draftCount, setDraftCount] = useState<number>(0);
 
   const [generatedResult, setGeneratedResult] = useState<{
     title: string;
@@ -47,17 +59,31 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
     words: any[];
   } | null>(null);
 
-  // Set of indices for selected words to save in the Word Bank (defaults to all selected)
+  // Set of indices for selected words to save in the Word Bank
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
+  // Fetch draft count on mount and when drafts change
+  useEffect(() => {
+    async function loadDraftCount() {
+      try {
+        const res = await fetch('/api/drafts');
+        if (res.ok) {
+          const data = await res.json();
+          setDraftCount(data.count || 0);
+        }
+      } catch (_) {}
+    }
+    loadDraftCount();
+  }, [draftsVersion]);
+
   const beginnerTopics = [
-    { id: 'daily life', title: 'Daily Life & Home', arabic: 'الحَيَاةُ اليَوْمِيَّة', note: 'Waking up, having breakfast, coffee, family life' },
-    { id: 'food', title: 'Food & Ordering at a Cafe', arabic: 'الطَّعَامُ وَالمَطَاعِم', note: 'Favorite dishes, drinks, ordering, dining with friends' },
-    { id: 'travel', title: 'Travel & Getting Around', arabic: 'السَّفَرُ وَالمَدِينَة', note: 'Asking for directions, taking a taxi, trains, airport' },
-    { id: 'work', title: 'Work, Office & School', arabic: 'العَمَلُ وَالدِّرَاسَة', note: 'Colleagues, books, writing emails, meetings' },
-    { id: 'technology', title: 'Technology & Internet', arabic: 'التِّكْنُولُوجِيَا وَالهَاتِف', note: 'Smartphones, apps, laptops, texting' },
-    { id: 'emotions', title: 'Feelings & Everyday Small Talk', arabic: 'المَشَاعِرُ وَالحِوَار', note: 'Saying hello, how are you, happy, tired, patient' },
-    { id: 'custom', title: 'Choose Your Own Topic...', arabic: 'مَوْضُوعٌ مِنْ اخْتِيَارِك', note: 'Type anything you want to learn words about' },
+    { id: 'daily life', title: 'Daily Life & Home', arabic: 'الحَيَاةُ اليَوْمِيَّة', icon: Home, note: 'Waking up, having breakfast, coffee, family routines' },
+    { id: 'food', title: 'Food & Dining at a Cafe', arabic: 'الطَّعَامُ وَالمَطَاعِم', icon: Coffee, note: 'Ordering dishes, drinks, dining, cafe conversations' },
+    { id: 'travel', title: 'Travel & Getting Around', arabic: 'السَّفَرُ وَالمَدِينَة', icon: Plane, note: 'Directions, taxis, airport navigation, commuting' },
+    { id: 'work', title: 'Work, Office & School', arabic: 'العَمَلُ وَالدِّرَاسَة', icon: Briefcase, note: 'Colleagues, books, writing emails, meetings' },
+    { id: 'technology', title: 'Technology & Digital Life', arabic: 'التِّكْنُولُوجِيَا وَالهَاتِف', icon: Laptop, note: 'Smartphones, apps, laptops, digital texting' },
+    { id: 'emotions', title: 'Feelings & Everyday Small Talk', arabic: 'المَشَاعِرُ وَالحِوَار', icon: Smile, note: 'Greetings, mood, feelings, friendly banter' },
+    { id: 'custom', title: 'Custom Topic Definition...', arabic: 'مَوْضُوعٌ مِنْ اخْتِيَارِك', icon: PenTool, note: 'Define any custom theme, scenario, or vocabulary focus' },
   ];
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -173,44 +199,78 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn w-full max-w-7xl mx-auto">
-      {/* Navigation Tabs Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
-        {/* Navigation Pill Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] rounded-xl shadow-xs">
-          <Button
-            type="button"
-            variant={activeTab === 'generate' ? 'primary' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('generate')}
-            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-          >
-            Generate Words
-          </Button>
-          <Button
-            type="button"
-            variant={activeTab === 'drafts' ? 'primary' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('drafts')}
-            leftIcon={<Inbox className="w-3.5 h-3.5" />}
-          >
-            Drafts Collection
-          </Button>
+    <div className="w-full space-y-7 animate-fadeIn pb-16">
+      
+      {/* Top Header & Tab Navigation Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--ink-primary)] tracking-tight">
+              Learn New Words
+            </h1>
+            <span className="font-arabic font-bold text-lg sm:text-xl text-[var(--accent-ochre)] harakat-text">
+              • تَعَلَّمْ كَلِمَاتٍ جَدِيدَة
+            </span>
+          </div>
+          <p className="text-xs text-[var(--ink-muted)] mt-1">
+            Instruct Gemini AI to weave authentic thematic Arabic vocabulary with full diacritics, audio & contextual sentences.
+          </p>
         </div>
 
-        {autoDraftMsg && activeTab === 'generate' && (
-          <div className="p-2 px-3 bg-[var(--accent-cypress)]/10 border border-[var(--accent-cypress)]/30 rounded-lg text-xs text-[var(--accent-cypress)] flex items-center gap-2 animate-fadeIn">
-            <span>✓ {autoDraftMsg}</span>
-            <button
-              type="button"
-              onClick={() => setActiveTab('drafts')}
-              className="font-bold underline hover:opacity-80 flex items-center gap-1 cursor-pointer"
-            >
-              <Inbox className="w-3.5 h-3.5" /> View Drafts
-            </button>
-          </div>
-        )}
+        {/* Tab Navigation Switcher */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('generate')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${
+              activeTab === 'generate'
+                ? 'bg-[#9a5d16] text-white shadow-sm font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface)] border border-transparent'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Generate Words</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('drafts')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition cursor-pointer ${
+              activeTab === 'drafts'
+                ? 'bg-[#9a5d16] text-white shadow-sm font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface)] border border-transparent'
+            }`}
+          >
+            <Inbox className="w-4 h-4" />
+            <span>Drafts Collection</span>
+            {draftCount > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'drafts'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-muted)] border border-[var(--border-subtle)]'
+              }`}>
+                {draftCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Auto-Draft Notification */}
+      {autoDraftMsg && activeTab === 'generate' && (
+        <div className="p-3 bg-[var(--accent-cypress)]/10 border border-[var(--accent-cypress)]/30 rounded-xl text-xs text-[var(--accent-cypress)] flex items-center justify-between gap-3 animate-fadeIn">
+          <span className="flex items-center gap-2 font-medium">
+            <Check className="w-4 h-4" /> {autoDraftMsg}
+          </span>
+          <button
+            type="button"
+            onClick={() => setActiveTab('drafts')}
+            className="font-bold underline hover:opacity-80 flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <Inbox className="w-3.5 h-3.5" /> View Drafts Collection
+          </button>
+        </div>
+      )}
 
       {/* Render Drafts Manager if activeTab === 'drafts' */}
       {activeTab === 'drafts' && (
@@ -223,397 +283,508 @@ export const WordGeneratorView: React.FC<WordGeneratorProps> = ({
         />
       )}
 
-      {/* Generator Form */}
+      {/* Generator Form View */}
       {activeTab === 'generate' && (
-      <>
-      <form onSubmit={handleGenerate} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column (8 cols on desktop): 1. Pick a Topic */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-secondary)] block">
-              1. Choose a Topic
-            </label>
-            <span className="text-xs text-[var(--ink-muted)]">Select scenario or type custom</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {beginnerTopics.map((s) => {
-              const isSelected = topic === s.id;
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => setTopic(s.id)}
-                  className={`p-3.5 sm:p-4 rounded-xl border text-left cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-[var(--accent-ochre-dim)] border-[var(--accent-ochre)] ring-1 ring-[var(--accent-ochre)] shadow-xs'
-                      : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-elevated)]'
-                  }`}
-                >
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className="font-semibold text-sm text-[var(--ink-primary)]">
-                      {s.title}
-                    </span>
-                    <span className="font-arabic text-base sm:text-lg text-[var(--accent-ochre)] font-bold">
-                      {s.arabic}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--ink-muted)] leading-relaxed">{s.note}</p>
+        <>
+          <form onSubmit={handleGenerate} className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+            
+            {/* Left Column (8 cols): Thematic Scenarios Arena */}
+            <div className="lg:col-span-8 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs uppercase tracking-wider font-bold text-[var(--accent-ochre)] block">
+                    1. Select A Thematic Scenario
+                  </span>
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    Choose a curated everyday scenario or define your custom topic.
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-
-          {topic === 'custom' && (
-            <div className="pt-2 animate-fadeIn">
-              <input
-                type="text"
-                placeholder="Type your own topic: e.g. Shopping at the market, visiting the doctor, playing football..."
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--accent-ochre)] text-[var(--ink-primary)] text-sm focus:outline-none placeholder:text-[var(--ink-muted)] shadow-xs"
-                required
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Right Column (4 cols on desktop): Settings & Sticky Action Panel */}
-        <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
-          <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 shadow-sm">
-            <h3 className="font-semibold text-xs uppercase tracking-wider text-[var(--ink-secondary)] flex items-center gap-1.5 pb-2 border-b border-[var(--border-subtle)]">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
-              <span>Generation Settings</span>
-            </h3>
-
-            {/* How Many Words */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
-                2. How Many Words?
-              </label>
-              <select
-                value={count}
-                onChange={(e) => setCount(Number(e.target.value))}
-                className="w-full p-2.5 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none focus:border-[var(--accent-ochre)]"
-              >
-                <option value={5}>5 words (Quick lesson)</option>
-                <option value={10}>10 words (Recommended)</option>
-                <option value={15}>15 words (Challenge)</option>
-              </select>
-            </div>
-
-            {/* Difficulty Level */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
-                3. Difficulty Level
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as any)}
-                className="w-full p-2.5 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none focus:border-[var(--accent-ochre)]"
-              >
-                <option value="beginner">Beginner (Easy everyday words)</option>
-                <option value="intermediate">Intermediate (Conversational)</option>
-                <option value="advanced">Advanced (Rich vocabulary)</option>
-              </select>
-            </div>
-
-            {/* Word Types */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
-                4. Word Types
-              </label>
-              <select
-                value={wordType}
-                onChange={(e) => setWordType(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none focus:border-[var(--accent-ochre)]"
-              >
-                <option value="mixed">Mixed (Nouns, Verbs & Adjectives)</option>
-                <option value="verbs">Verbs only (Actions)</option>
-                <option value="nouns">Nouns only (Things & Objects)</option>
-                <option value="adjectives">Adjectives only (Descriptions)</option>
-                <option value="expressions">Everyday Expressions & Phrases</option>
-              </select>
-            </div>
-
-            {/* Review integration toggle */}
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)]">
-              <input
-                type="checkbox"
-                id="includeRevision"
-                checked={includeRevision}
-                onChange={(e) => setIncludeRevision(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded accent-[var(--accent-ochre)] cursor-pointer shrink-0"
-              />
-              <label htmlFor="includeRevision" className="text-xs text-[var(--ink-secondary)] cursor-pointer leading-snug">
-                <span className="font-semibold text-[var(--ink-primary)] block">Review tricky words</span>
-                <span className="text-[11px] text-[var(--ink-muted)]">Weaves words you struggled with into example sentences.</span>
-              </label>
-            </div>
-
-            {/* Error notification */}
-            {error && (
-              <div className="p-3 rounded-lg bg-[var(--accent-terracotta)]/10 border border-[var(--accent-terracotta)]/30 text-[var(--accent-terracotta)] text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+                {topic && (
+                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-secondary)] hidden sm:inline">
+                    Selected: <strong className="text-[var(--accent-ochre)] capitalize">{topic}</strong>
+                  </span>
+                )}
               </div>
-            )}
 
-            {/* Generate Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={isLoading}
-              leftIcon={<Sparkles className="w-4 h-4" />}
-              className="w-full uppercase tracking-wider text-xs font-bold py-3.5 shadow-sm"
-            >
-              {isLoading ? 'Weaving Storyline...' : 'Generate My Words'}
-            </Button>
-          </div>
-        </div>
-      </form>
+              {/* 3-Column Topic Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                {beginnerTopics.map((s) => {
+                  const isSelected = topic === s.id;
+                  const Icon = s.icon;
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => setTopic(s.id)}
+                      className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none flex flex-col justify-between space-y-3 relative overflow-hidden group shadow-xs ${
+                        isSelected
+                          ? 'bg-[var(--accent-ochre-dim)] border-[var(--accent-ochre)] ring-1 ring-[var(--accent-ochre)] shadow-sm'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/40 hover:bg-[var(--bg-surface-elevated)]'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className={`p-2 rounded-xl transition-colors ${
+                            isSelected
+                              ? 'bg-[var(--accent-ochre)] text-[#121316]'
+                              : 'bg-[var(--bg-surface-elevated)] text-[var(--accent-ochre)] border border-[var(--border-subtle)] group-hover:scale-105'
+                          }`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <span className="font-arabic text-base sm:text-lg text-[var(--accent-ochre)] font-bold harakat-text">
+                            {s.arabic}
+                          </span>
+                        </div>
 
-      {/* ================= SKELETON LOADING ANIMATION ================= */}
-      {isLoading && (
-        <section className="space-y-8 pt-8 border-t border-[var(--border-subtle)] animate-fadeIn" aria-busy="true">
-          {/* Skeleton Storyline Header */}
-          <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
-              <div className="space-y-2.5 w-full max-w-md">
-                <div className="h-3 w-24 rounded-md skeleton-shimmer" />
-                <div className="h-7 w-3/4 rounded-lg skeleton-shimmer" />
-                <div className="h-4 w-full rounded-md skeleton-shimmer" />
+                        <h4 className="font-bold text-sm text-[var(--ink-primary)] leading-tight">
+                          {s.title}
+                        </h4>
+
+                        <p className="text-xs text-[var(--ink-muted)] leading-relaxed line-clamp-2">
+                          {s.note}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)]/40 text-[10px]">
+                        <span className="text-[var(--ink-muted)] font-mono">Everyday setting</span>
+                        {isSelected ? (
+                          <span className="text-[var(--accent-ochre)] font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                          </span>
+                        ) : (
+                          <span className="text-[var(--ink-muted)] group-hover:text-[var(--ink-secondary)]">Click to pick</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="h-10 w-36 rounded-xl skeleton-shimmer shrink-0" />
+
+              {/* Custom Topic Input */}
+              {topic === 'custom' && (
+                <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--accent-ochre)] shadow-xs space-y-2 animate-fadeIn">
+                  <label className="text-xs font-semibold text-[var(--ink-primary)] flex items-center gap-2">
+                    <PenTool className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
+                    <span>Specify Your Custom Scenario or Thematic Goal:</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. In an Arabic bakery buying fresh bread, discussing AI and coding in a job interview..."
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs sm:text-sm focus:outline-none focus:border-[var(--accent-ochre)] placeholder:text-[var(--ink-muted)] transition"
+                    required
+                  />
+                </div>
+              )}
             </div>
-            <div className="pt-2 flex items-center gap-2 text-xs text-[var(--accent-ochre)] font-medium">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Gemini is generating words with full harakāt, transliterations & context sentences...</span>
-            </div>
-          </div>
 
-          {/* Skeleton Word Rows */}
-          <div className="space-y-4">
-            <div className="h-3 w-32 rounded-md skeleton-shimmer" />
+            {/* Right Column (4 cols): Pinned Generation Console */}
+            <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-4 self-start">
+              <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-5 shadow-xs relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--accent-ochre)]/5 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10" />
 
-            <div className="divide-y divide-[var(--border-subtle)] border-t border-b border-[var(--border-subtle)]">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="py-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-start px-3"
-                >
-                  {/* Left: Arabic word & root placeholder */}
-                  <div className="md:col-span-4 space-y-2.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full skeleton-shimmer shrink-0" />
-                      <div className="h-9 w-28 rounded-lg skeleton-shimmer" />
-                    </div>
-                    <div className="h-3 w-20 rounded-md skeleton-shimmer ml-11" />
-                    <div className="h-3 w-24 rounded-md skeleton-shimmer ml-11" />
-                  </div>
+                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3 relative z-10">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent-ochre)] flex items-center gap-2">
+                    <Sliders className="w-4 h-4" />
+                    Generation Console
+                  </span>
+                  <span className="text-[10px] font-mono text-[var(--ink-muted)]">Gemini AI</span>
+                </div>
 
-                  {/* Middle: English translation placeholder */}
-                  <div className="md:col-span-3 space-y-2">
-                    <div className="h-3 w-16 rounded-md skeleton-shimmer" />
-                    <div className="h-5 w-32 rounded-md skeleton-shimmer" />
-                    <div className="h-4 w-24 rounded-md skeleton-shimmer" />
-                  </div>
-
-                  {/* Right: Example sentence + transliteration placeholder */}
-                  <div className="md:col-span-5 space-y-2.5 pl-0 md:pl-4 border-l-0 md:border-l border-[var(--border-subtle)]">
-                    <div className="flex justify-between items-center">
-                      <div className="h-3 w-24 rounded-md skeleton-shimmer" />
-                      <div className="w-7 h-7 rounded-full skeleton-shimmer" />
-                    </div>
-                    <div className="h-7 w-5/6 rounded-lg skeleton-shimmer ml-auto" />
-                    <div className="h-3 w-4/6 rounded-md skeleton-shimmer" />
-                    <div className="h-3 w-3/5 rounded-md skeleton-shimmer" />
+                {/* Word Count Selector */}
+                <div className="space-y-1.5 relative z-10">
+                  <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
+                    2. Word Count
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { val: 5, label: '5 Words', sub: 'Quick bite' },
+                      { val: 10, label: '10 Words', sub: 'Recommended' },
+                      { val: 15, label: '15 Words', sub: 'Deep dive' },
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        onClick={() => setCount(item.val)}
+                        className={`p-2 rounded-xl border text-center transition cursor-pointer ${
+                          count === item.val
+                            ? 'bg-[#9a5d16] text-white border-[#9a5d16] font-bold shadow-xs'
+                            : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-secondary)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/40'
+                        }`}
+                      >
+                        <div className="text-xs">{item.label}</div>
+                        <div className={`text-[9px] ${count === item.val ? 'text-white/85 font-medium' : 'text-[var(--ink-muted)]'}`}>{item.sub}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* Generated Word List */}
-      {!isLoading && generatedResult && (
-        <section className="space-y-8 pt-8 border-t border-[var(--border-subtle)] animate-fadeIn">
-          {/* Situation Storyline Card */}
-          <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--accent-ochre)]/40 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
-              <div>
-                <span className="text-xs font-semibold text-[var(--accent-ochre)] uppercase tracking-wider">
-                  Storyline
-                </span>
-                <h3 className="editorial-title text-2xl font-semibold text-[var(--ink-primary)] mt-0.5">
-                  {generatedResult.title}
-                </h3>
-              </div>
+                {/* Difficulty Level Selector */}
+                <div className="space-y-1.5 relative z-10">
+                  <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
+                    3. Difficulty Level
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'beginner', label: 'Beginner', arabic: 'مُبْتَدِئ' },
+                      { id: 'intermediate', label: 'Intermediate', arabic: 'مُتَوَسِّط' },
+                      { id: 'advanced', label: 'Advanced', arabic: 'مُتَقَدِّم' },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setDifficulty(d.id as any)}
+                        className={`p-2 rounded-xl border text-center transition cursor-pointer ${
+                          difficulty === d.id
+                            ? 'bg-[#9a5d16] text-white border-[#9a5d16] font-bold shadow-xs'
+                            : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-secondary)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/40'
+                        }`}
+                      >
+                        <div className="text-xs">{d.label}</div>
+                        <div className={`font-arabic text-[11px] leading-tight mt-0.5 ${difficulty === d.id ? 'text-white/95 font-semibold' : 'text-[var(--ink-muted)]'}`}>{d.arabic}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                onClick={handleSaveToLibrary}
-                disabled={!!saveSuccessMsg || selectedIndices.size === 0}
-                isLoading={isSaving}
-                leftIcon={
-                  saveSuccessMsg ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <BookmarkPlus className="w-4 h-4" />
-                  )
-                }
-                className="self-start sm:self-auto"
-              >
-                {saveSuccessMsg
-                  ? 'Saved to Word Bank!'
-                  : selectedIndices.size === 0
-                  ? 'Select words to save'
-                  : selectedIndices.size === generatedResult.words.length
-                  ? `Save All ${generatedResult.words.length} Words`
-                  : `Save Selected (${selectedIndices.size}/${generatedResult.words.length})`}
-              </Button>
-            </div>
+                {/* Word Types Selector */}
+                <div className="space-y-1.5 relative z-10">
+                  <label className="text-xs font-semibold text-[var(--ink-secondary)] block">
+                    4. Word Types
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: 'mixed', label: 'Mixed Types', desc: 'Nouns, verbs & traits' },
+                      { id: 'verbs', label: 'Verbs (أَفْعَال)', desc: 'Actions & movements' },
+                      { id: 'nouns', label: 'Nouns (أَسْمَاء)', desc: 'Objects & concepts' },
+                      { id: 'adjectives', label: 'Adjectives (صِفَات)', desc: 'Qualities & states' },
+                    ].map((wt) => (
+                      <button
+                        key={wt.id}
+                        type="button"
+                        onClick={() => setWordType(wt.id)}
+                        className={`p-2 rounded-xl border text-left transition cursor-pointer ${
+                          wordType === wt.id
+                            ? 'bg-[var(--accent-ochre-dim)] border-[var(--accent-ochre)] text-[var(--ink-primary)]'
+                            : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-secondary)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/40'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{wt.label}</div>
+                        <div className="text-[10px] text-[var(--ink-muted)] truncate mt-0.5">{wt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <p className="text-sm text-[var(--ink-secondary)] leading-relaxed italic border-l-2 border-[var(--accent-ochre)] pl-3.5">
-              "{generatedResult.themeContext}"
-            </p>
-
-            {saveSuccessMsg && (
-              <div className="pt-2 flex items-center justify-between text-xs text-[var(--accent-cypress)]">
-                <span>✓ {saveSuccessMsg}</span>
-                <button
-                  onClick={onNavigateToStudy}
-                  className="font-bold underline hover:text-[var(--ink-primary)] flex items-center gap-1 cursor-pointer"
-                >
-                  Start Practicing Flashcards Now <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Words List Header with Select All */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-2">
-              <div className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-muted)]">
-                Generated Vocabulary ({selectedIndices.size} of {generatedResult.words.length} selected)
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleSelectAll}
-                  className="text-xs font-medium text-[var(--accent-ochre)] hover:underline flex items-center gap-1.5 cursor-pointer"
+                {/* Review Tricky Words Toggle */}
+                <div
+                  onClick={() => setIncludeRevision(!includeRevision)}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--accent-ochre)]/40 transition select-none relative z-10"
                 >
                   <input
                     type="checkbox"
-                    readOnly
-                    checked={selectedIndices.size === generatedResult.words.length && generatedResult.words.length > 0}
-                    className="h-3.5 w-3.5 rounded accent-[var(--accent-ochre)] cursor-pointer pointer-events-none"
+                    id="includeRevision"
+                    checked={includeRevision}
+                    onChange={(e) => setIncludeRevision(e.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-0.5 h-4 w-4 rounded accent-[var(--accent-ochre)] cursor-pointer shrink-0"
                   />
-                  <span>
-                    {selectedIndices.size === generatedResult.words.length ? 'Deselect All' : 'Select All'}
-                  </span>
-                </button>
+                  <div className="text-xs leading-snug">
+                    <span className="font-semibold text-[var(--ink-primary)] block">Review Tricky Words</span>
+                    <span className="text-[11px] text-[var(--ink-muted)]">Weaves words you struggled with into example sentences.</span>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl bg-[var(--accent-terracotta)]/10 border border-[var(--accent-terracotta)]/30 text-[var(--accent-terracotta)] text-xs flex items-center gap-2 relative z-10">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Generate Button */}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  isLoading={isLoading}
+                  leftIcon={<Sparkles className="w-4 h-4" />}
+                  className="w-full uppercase tracking-wider text-xs font-bold py-3.5 shadow-sm relative z-10"
+                >
+                  {isLoading ? 'Weaving Vocabulary...' : 'Generate Vocabulary Set'}
+                </Button>
               </div>
             </div>
+          </form>
 
-            <div className="divide-y divide-[var(--border-subtle)] border-b border-[var(--border-subtle)]">
-              {generatedResult.words.map((w, idx) => {
-                const isChecked = selectedIndices.has(idx);
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => toggleWordSelection(idx)}
-                    className={`py-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-start px-3 rounded-xl transition-all cursor-pointer ${
-                      isChecked
-                        ? 'bg-[var(--accent-ochre-dim)]/30 border border-[var(--accent-ochre)]/30 my-1.5'
-                        : 'hover:bg-[var(--bg-surface-elevated)]/50 opacity-60'
-                    }`}
-                  >
-                    {/* Arabic Word + Checkbox + Audio Button */}
-                    <div className="md:col-span-4 space-y-1">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleWordSelection(idx)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 rounded accent-[var(--accent-ochre)] cursor-pointer shrink-0"
-                          aria-label={`Select word ${w.arabic}`}
-                        />
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <AudioPronounceButton arabicText={w.arabic} size="sm" />
-                        </div>
-                        <span className="font-arabic text-3xl font-bold text-[var(--accent-ochre)] harakat-text">
-                          {w.arabic}
-                        </span>
-                      </div>
-                      <div className="text-xs font-mono text-[var(--ink-muted)] pl-16">
-                        {w.transliteration}
-                      </div>
-                      {w.root && (
-                        <div className="text-xs text-[var(--ink-muted)] pl-16">
-                          3-Letter Root: <strong className="text-[var(--ink-secondary)]">{w.root}</strong>
-                        </div>
-                      )}
+          {/* ================= SKELETON LOADING ANIMATION ================= */}
+          {isLoading && (
+            <section className="space-y-6 pt-6 border-t border-[var(--border-subtle)] animate-fadeIn" aria-busy="true">
+              {/* Skeleton Storyline Header */}
+              <div className="p-6 sm:p-7 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 animate-pulse">
+                <div className="h-4 bg-[var(--border-subtle)] rounded w-28" />
+                <div className="h-8 bg-[var(--border-subtle)] rounded w-1/2" />
+                <div className="h-4 bg-[var(--border-subtle)] rounded w-3/4" />
+                <div className="pt-2 flex items-center gap-2 text-xs text-[var(--accent-ochre)] font-medium">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Gemini AI is weaving words with full harakāt, transliterations & context sentences...</span>
+                </div>
+              </div>
+
+              {/* Skeleton Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 animate-pulse">
+                    <div className="flex justify-between">
+                      <div className="h-4 bg-[var(--border-subtle)] rounded w-1/4" />
+                      <div className="h-4 bg-[var(--border-subtle)] rounded w-1/6" />
                     </div>
+                    <div className="h-9 bg-[var(--border-subtle)] rounded w-2/3" />
+                    <div className="h-4 bg-[var(--border-subtle)] rounded w-1/2" />
+                    <div className="h-16 bg-[var(--border-subtle)] rounded-xl w-full" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-                  {/* Meaning & Verb Forms */}
-                  <div className="md:col-span-3 space-y-1">
-                    <span className="text-[11px] font-semibold text-[var(--ink-muted)] uppercase tracking-wider">
-                      {w.wordType}
+          {/* ================= GENERATED RESULTS CARD GRID ================= */}
+          {!isLoading && generatedResult && (
+            <section className="space-y-6 pt-6 border-t border-[var(--border-subtle)] animate-fadeIn">
+              
+              {/* Situation Storyline Card */}
+              <div className="p-6 sm:p-7 rounded-2xl bg-[var(--bg-surface)] border border-[var(--accent-ochre)]/40 space-y-4 shadow-xs relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-[var(--accent-ochre)]/5 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16" />
+
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-[var(--accent-ochre)] uppercase tracking-wider bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full">
+                      Thematic Storyline
                     </span>
-                    <div className="font-serif text-lg font-semibold text-[var(--ink-primary)]">
-                      {w.english}
-                    </div>
-
-                    {w.presentTenseI && (
-                      <div className="text-xs text-[var(--ink-secondary)] pt-1">
-                        <span className="font-arabic text-base text-[var(--accent-cypress)]">
-                          أَنَا {w.presentTenseI} • هُوَ {w.presentTenseHe || '-'}
-                        </span>
-                      </div>
-                    )}
+                    <h3 className="editorial-title text-2xl font-bold text-[var(--ink-primary)] mt-1.5">
+                      {generatedResult.title}
+                    </h3>
                   </div>
 
-                    {/* Sentence Example in Context */}
-                    <div className="md:col-span-5 space-y-1.5 pl-0 md:pl-4 border-l-0 md:border-l border-[var(--border-subtle)]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[11px] font-semibold text-[var(--ink-muted)]">
-                          Example Sentence:
-                        </span>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <AudioPronounceButton arabicText={w.exampleArabic} size="sm" />
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      onClick={handleSaveToLibrary}
+                      disabled={!!saveSuccessMsg || selectedIndices.size === 0}
+                      isLoading={isSaving}
+                      leftIcon={
+                        saveSuccessMsg ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <BookmarkPlus className="w-4 h-4" />
+                        )
+                      }
+                    >
+                      {saveSuccessMsg
+                        ? 'Saved to Word Bank!'
+                        : selectedIndices.size === 0
+                        ? 'Select words to save'
+                        : selectedIndices.size === generatedResult.words.length
+                        ? `Save All ${generatedResult.words.length} Words`
+                        : `Save Selected (${selectedIndices.size}/${generatedResult.words.length})`}
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="relative z-10 text-sm text-[var(--ink-secondary)] leading-relaxed italic border-l-3 border-[var(--accent-ochre)] pl-3.5 font-serif">
+                  "{generatedResult.themeContext}"
+                </p>
+
+                {saveSuccessMsg && (
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--accent-cypress)] bg-[var(--accent-cypress)]/10 p-3 rounded-xl border border-[var(--accent-cypress)]/25">
+                    <span className="font-semibold">✓ {saveSuccessMsg}</span>
+                    <button
+                      onClick={onNavigateToStudy}
+                      className="font-bold underline hover:text-[var(--ink-primary)] flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      Start Practicing Flashcards Now <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Toolbar Header with Counter and Select All */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-2 px-1">
+                <div className="text-xs uppercase tracking-wider font-bold text-[var(--ink-secondary)]">
+                  Generated Vocabulary ({selectedIndices.size} of {generatedResult.words.length} selected)
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className="text-xs font-semibold text-[var(--accent-ochre)] hover:underline flex items-center gap-2 cursor-pointer bg-[var(--bg-surface)] px-3 py-1.5 rounded-lg border border-[var(--border-subtle)]"
+                  >
+                    <input
+                      type="checkbox"
+                      readOnly
+                      checked={selectedIndices.size === generatedResult.words.length && generatedResult.words.length > 0}
+                      className="h-3.5 w-3.5 rounded accent-[var(--accent-ochre)] cursor-pointer pointer-events-none"
+                    />
+                    <span>
+                      {selectedIndices.size === generatedResult.words.length ? 'Deselect All' : 'Select All'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* High-Density Card Grid (Like Root Family in /library/[id]) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {generatedResult.words.map((w, idx) => {
+                  const isChecked = selectedIndices.has(idx);
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => toggleWordSelection(idx)}
+                      className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-4 select-none group shadow-xs ${
+                        isChecked
+                          ? 'bg-[var(--bg-surface)] border-[var(--accent-ochre)] ring-1 ring-[var(--accent-ochre)]/40 shadow-sm'
+                          : 'bg-[var(--bg-surface)]/60 border-[var(--border-subtle)] opacity-55 hover:opacity-85'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        {/* Top Badges & Select Toggle */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-secondary)]">
+                              {w.wordType}
+                            </span>
+                            {w.root && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)]">
+                                Root: <strong className="font-arabic font-bold">{w.root}</strong>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleWordSelection(idx)}
+                              className="h-4 w-4 rounded accent-[var(--accent-ochre)] cursor-pointer"
+                              aria-label={`Select word ${w.arabic}`}
+                            />
+                          </div>
                         </div>
+
+                        {/* Arabic Word & Audio */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-arabic text-3xl sm:text-4xl font-bold text-[var(--accent-ochre)] harakat-text leading-tight group-hover:scale-[1.02] transition-transform origin-right">
+                              {w.arabic}
+                            </p>
+                            {w.transliteration && (
+                              <p className="text-xs font-mono text-[var(--ink-secondary)] mt-1 font-medium">
+                                ({w.transliteration})
+                              </p>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()} className="shrink-0 mt-1">
+                            <AudioPronounceButton arabicText={w.arabic} size="md" />
+                          </div>
+                        </div>
+
+                        {/* English Meaning */}
+                        <h4 className="font-serif text-lg font-bold text-[var(--ink-primary)]">
+                          {w.english}
+                        </h4>
+
+                        {/* Verb Conjugation if present */}
+                        {w.presentTenseI && (
+                          <div className="p-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-xs text-[var(--accent-cypress)] font-arabic font-semibold">
+                            أَنَا {w.presentTenseI} • هُوَ {w.presentTenseHe || '-'}
+                          </div>
+                        )}
+
+                        {/* Plural and Opposite Linguistic Forms if present */}
+                        {(w.pluralArabic || w.oppositeArabic) && (
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {w.pluralArabic && (
+                              <div className="p-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex-1 min-w-[120px] space-y-0.5">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--accent-cypress)] block">
+                                  Plural • الْجَمْع
+                                </span>
+                                <span className="font-arabic font-bold text-[var(--accent-ochre)] text-sm harakat-text block">
+                                  {w.pluralArabic}
+                                </span>
+                                {w.pluralEnglish && (
+                                  <span className="text-[10px] text-[var(--ink-muted)] block">
+                                    {w.pluralEnglish}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {w.oppositeArabic && (
+                              <div className="p-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] flex-1 min-w-[120px] space-y-0.5">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--accent-ochre)] block">
+                                  Opposite • الضِّدّ
+                                </span>
+                                <span className="font-arabic font-bold text-[var(--accent-ochre)] text-sm harakat-text block">
+                                  {w.oppositeArabic}
+                                </span>
+                                {w.oppositeEnglish && (
+                                  <span className="text-[10px] text-[var(--ink-muted)] block">
+                                    {w.oppositeEnglish}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Context Sentence Box */}
+                        {w.exampleArabic && (
+                          <div className="p-3.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <p dir="rtl" className="font-arabic text-base font-medium text-[var(--ink-primary)] harakat-text text-right flex-1 leading-relaxed">
+                                {w.exampleArabic}
+                              </p>
+                              <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                                <AudioPronounceButton arabicText={w.exampleArabic} size="sm" />
+                              </div>
+                            </div>
+
+                            {w.exampleTransliteration && (
+                              <p className="text-[10px] font-mono text-[var(--ink-muted)]">
+                                {w.exampleTransliteration}
+                              </p>
+                            )}
+
+                            <p className="text-xs font-serif italic text-[var(--ink-secondary)]">
+                              "{w.exampleEnglish}"
+                            </p>
+                          </div>
+                        )}
+
+                        {w.explanation && (
+                          <p className="text-[11px] text-[var(--ink-muted)] flex items-start gap-1.5 pt-0.5">
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--accent-ochre)]" />
+                            <span>{w.explanation}</span>
+                          </p>
+                        )}
                       </div>
-                      <p className="font-arabic text-lg font-semibold text-[var(--ink-primary)] harakat-text text-right leading-loose">
-                        {w.exampleArabic}
-                      </p>
-                      {w.exampleTransliteration && (
-                        <p className="text-xs text-[var(--ink-muted)] font-mono">
-                          {w.exampleTransliteration}
-                        </p>
-                      )}
-                      <p className="text-xs text-[var(--ink-secondary)] italic">
-                        "{w.exampleEnglish}"
-                      </p>
-                      {w.explanation && (
-                        <p className="text-xs text-[var(--ink-muted)] pt-1 flex items-start gap-1">
-                          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--accent-ochre)]" />
-                          <span>{w.explanation}</span>
-                        </p>
-                      )}
+
+                      {/* Card Bottom Selection Bar */}
+                      <div className="pt-2 border-t border-[var(--border-subtle)]/50 flex items-center justify-between text-[11px]">
+                        <span className={isChecked ? 'text-[var(--accent-ochre)] font-bold' : 'text-[var(--ink-muted)]'}>
+                          {isChecked ? '✓ Will be added to Word Bank' : 'Excluded from saving'}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--ink-muted)]">#{idx + 1}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-      </>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
