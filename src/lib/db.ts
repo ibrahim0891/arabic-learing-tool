@@ -17,13 +17,32 @@ function getDatabaseInstance() {
     const dbPath = path.join(dbDir, 'arabic_learning.db');
     const db = new Database(dbPath);
 
-    // Enable WAL mode
+    // Enable WAL mode and disable foreign key enforcement for robust offline caching
     try {
       db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = OFF');
     } catch (_) {}
 
     // Initialize database schema
     db.exec(`
+      CREATE TABLE IF NOT EXISTS word_additional_examples (
+        word_id TEXT PRIMARY KEY,
+        arabic TEXT,
+        examples TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_word_examples_arabic ON word_additional_examples(arabic);
+
+      CREATE TABLE IF NOT EXISTS word_root_families (
+        word_id TEXT PRIMARY KEY,
+        root TEXT,
+        arabic TEXT,
+        family TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_word_root_families_root ON word_root_families(root);
+      CREATE INDEX IF NOT EXISTS idx_word_root_families_arabic ON word_root_families(arabic);
+
       CREATE TABLE IF NOT EXISTS word_sets (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -137,6 +156,9 @@ function getDatabaseInstance() {
     // Safe migration for existing SQLite files
     try {
       db.exec("ALTER TABLE words ADD COLUMN additionalExamples TEXT;");
+    } catch (_) {}
+    try {
+      db.exec("ALTER TABLE words ADD COLUMN rootFamily TEXT;");
     } catch (_) {}
 
     return db;

@@ -39,8 +39,32 @@ CREATE TABLE IF NOT EXISTS public.words (
   interval_days INTEGER NOT NULL DEFAULT 0,
   repetition_count INTEGER NOT NULL DEFAULT 0,
   next_review_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_reviewed_date TIMESTAMPTZ
+  last_reviewed_date TIMESTAMPTZ,
+  additional_examples JSONB DEFAULT '[]'::jsonb,
+  root_family JSONB DEFAULT '[]'::jsonb
 );
+
+-- Migration for existing words table
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS additional_examples JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS root_family JSONB DEFAULT '[]'::jsonb;
+
+-- Root Families Dedicated Table (Cross-device cloud sync)
+CREATE TABLE IF NOT EXISTS public.word_root_families (
+  word_id TEXT PRIMARY KEY,
+  root TEXT NOT NULL,
+  arabic TEXT NOT NULL,
+  family JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_word_root_families_root ON public.word_root_families(root);
+CREATE INDEX IF NOT EXISTS idx_word_root_families_arabic ON public.word_root_families(arabic);
+
+ALTER TABLE public.word_root_families ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access on word_root_families" ON public.word_root_families FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on word_root_families" ON public.word_root_families FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access on word_root_families" ON public.word_root_families FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access on word_root_families" ON public.word_root_families FOR DELETE USING (true);
 
 -- Indexes for lightning-fast queries
 CREATE INDEX IF NOT EXISTS idx_words_arabic ON public.words(arabic);

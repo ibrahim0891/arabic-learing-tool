@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import {
   Search,
@@ -12,11 +13,12 @@ import {
   Loader2,
   CheckSquare,
   Square,
-  BookOpen
+  BookOpen,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
-import { WordExamplesSheet } from './WordExamplesSheet';
 import { Button } from './ui/Button';
 
 interface VocabularyLibraryProps {
@@ -26,15 +28,13 @@ interface VocabularyLibraryProps {
 export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
   onWordCountChange,
 }) => {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('all');
-
-  // Examples side sheet state
-  const [selectedWordForExamples, setSelectedWordForExamples] = useState<Word | null>(null);
 
   // Multiple selection state
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
@@ -394,9 +394,16 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                       )}
                     </button>
                     <AudioPronounceButton arabicText={w.arabic} size="md" />
-                    <span className="font-arabic text-4xl sm:text-5xl font-bold text-[var(--accent-ochre)] harakat-text">
-                      {w.arabic}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/library/${w.id}`)}
+                      className="text-right hover:opacity-85 transition cursor-pointer group text-inherit bg-transparent border-none p-0 inline-flex items-center"
+                      title="Click to view word details & root family"
+                    >
+                      <span className="font-arabic text-4xl sm:text-5xl font-bold text-[var(--accent-ochre)] group-hover:brightness-110 harakat-text">
+                        {w.arabic}
+                      </span>
+                    </button>
                   </div>
                   {w.transliteration && (
                     <div className="text-base font-mono text-[var(--ink-secondary)] pl-[4.5rem] tracking-wide font-medium">
@@ -407,9 +414,14 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
 
                 {/* English & Root */}
                 <div className="md:col-span-3 space-y-2">
-                  <div className="font-serif text-2xl font-bold text-[var(--ink-primary)]">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/library/${w.id}`)}
+                    className="font-serif text-2xl font-bold text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] text-left transition cursor-pointer block bg-transparent border-none p-0"
+                    title="Click to view word details & root family"
+                  >
                     {w.english}
-                  </div>
+                  </button>
                   <div className="text-xs text-[var(--ink-muted)] flex flex-wrap items-center gap-2">
                     <span className="capitalize font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">
                       {w.wordType}
@@ -467,23 +479,13 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                   <div className="flex items-center gap-1.5 flex-wrap justify-end">
                     <button
                       type="button"
-                      onClick={() => setSelectedWordForExamples(w)}
+                      onClick={() => router.push(`/library/${w.id}`)}
                       className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)] hover:text-[#121316] transition cursor-pointer flex items-center gap-1.5"
-                      title={
-                        (w.additionalExamples && w.additionalExamples.length > 0)
-                          ? `${1 + w.additionalExamples.length} example sentences available (${w.additionalExamples.length} AI generated)`
-                          : '1 example sentence available. Click to view & generate more with AI'
-                      }
+                      title="View word details, 6-10 root family words, and contextual examples"
                     >
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Examples</span>
-                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                        w.additionalExamples && w.additionalExamples.length > 0
-                          ? 'bg-[var(--accent-ochre)] text-[#121316]'
-                          : 'bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)]'
-                      }`}>
-                        {1 + (w.additionalExamples ? w.additionalExamples.length : 0)}
-                      </span>
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Root & Examples</span>
+                      <ChevronRight className="w-3 h-3 opacity-60" />
                     </button>
                     <button
                       onClick={() => handleOpenEdit(w)}
@@ -726,22 +728,6 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
             </div>
           </div>
         </div>,
-        document.body
-      )}
-
-      {/* Word Examples Side Sheet (3/4 width) */}
-      {selectedWordForExamples && mounted && typeof document !== 'undefined' && createPortal(
-        <WordExamplesSheet
-          word={selectedWordForExamples}
-          isOpen={Boolean(selectedWordForExamples)}
-          onClose={() => setSelectedWordForExamples(null)}
-          onWordUpdated={(updated) => {
-            setWords((prev) =>
-              prev.map((w) => (w.id === updated.id ? { ...w, ...updated } : w))
-            );
-            setSelectedWordForExamples(updated);
-          }}
-        />,
         document.body
       )}
     </div>

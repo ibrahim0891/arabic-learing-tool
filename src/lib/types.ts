@@ -1,3 +1,15 @@
+export interface RootFamilyWord {
+  id: string;
+  arabic: string;
+  transliteration: string;
+  english: string;
+  wordType: string;
+  pattern?: string;
+  exampleArabic: string;
+  exampleTransliteration: string;
+  exampleEnglish: string;
+}
+
 export interface ExampleSentence {
   id: string;
   arabic: string;
@@ -51,6 +63,7 @@ export interface Word {
   exampleEnglish: string;
   explanation: string;
   additionalExamples?: ExampleSentence[]; // Additional AI-generated sentences
+  rootFamily?: RootFamilyWord[]; // 6-10 AI-derived words from the same root
   topic: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   setId?: string;

@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import db from './db';
-import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence, ConversationSession, ChatMessage } from './types';
+import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence, ConversationSession, ChatMessage, RootFamilyWord } from './types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xqzkgespanhdzbudaeoz.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_aYl97LnIVJoQWLRslNWlWg_63YGRjK5';
@@ -89,6 +89,15 @@ export function mapSupabaseWordToModel(row: any): Word {
       : Array.isArray(row.additionalExamples)
       ? row.additionalExamples
       : [],
+    rootFamily: typeof row.root_family === 'string'
+      ? (() => { try { return JSON.parse(row.root_family); } catch (_) { return []; } })()
+      : Array.isArray(row.root_family)
+      ? row.root_family
+      : typeof row.rootFamily === 'string'
+      ? (() => { try { return JSON.parse(row.rootFamily); } catch (_) { return []; } })()
+      : Array.isArray(row.rootFamily)
+      ? row.rootFamily
+      : [],
   };
 }
 
@@ -122,6 +131,7 @@ export function mapWordModelToSupabase(word: Partial<Word>): any {
   if (word.nextReviewDate !== undefined) row.next_review_date = word.nextReviewDate;
   if (word.lastReviewedDate !== undefined) row.last_reviewed_date = word.lastReviewedDate;
   if (word.additionalExamples !== undefined) row.additional_examples = JSON.stringify(word.additionalExamples);
+  if (word.rootFamily !== undefined) row.root_family = JSON.stringify(word.rootFamily);
   return row;
 }
 
@@ -158,19 +168,17 @@ export const dataStore = {
         const words = data.map(mapSupabaseWordToModel);
         // Merge local SQLite additionalExamples if Supabase schema lacks the column
         try {
-          const localWordsWithExamples = db
-            .prepare("SELECT id, arabic, additionalExamples FROM words WHERE additionalExamples IS NOT NULL AND additionalExamples != ''")
-            .all() as { id: string; arabic: string; additionalExamples: string }[];
-          
-          if (localWordsWithExamples && localWordsWithExamples.length > 0) {
-            const examplesById = new Map<string, any[]>();
-            const examplesByArabic = new Map<string, any[]>();
+          const examplesById = new Map<string, any[]>();
+          const examplesByArabic = new Map<string, any[]>();
 
-            for (const item of localWordsWithExamples) {
+          // 1. From dedicated word_additional_examples table
+          try {
+            const dedicatedRows = db.prepare("SELECT word_id, arabic, examples FROM word_additional_examples WHERE examples IS NOT NULL AND examples != ''").all() as any[];
+            for (const item of dedicatedRows) {
               try {
-                const parsed = JSON.parse(item.additionalExamples);
+                const parsed = JSON.parse(item.examples);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                  examplesById.set(item.id, parsed);
+                  if (item.word_id) examplesById.set(item.word_id, parsed);
                   if (item.arabic) {
                     const cleanArabic = item.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
                     examplesByArabic.set(cleanArabic, parsed);
@@ -178,15 +186,66 @@ export const dataStore = {
                 }
               } catch (_) {}
             }
+          } catch (_) {}
+
+          // 2. From words table as fallback
+          try {
+            const localWordsWithExamples = db
+              .prepare("SELECT id, arabic, additionalExamples FROM words WHERE additionalExamples IS NOT NULL AND additionalExamples != ''")
+              .all() as { id: string; arabic: string; additionalExamples: string }[];
+            
+            for (const item of localWordsWithExamples) {
+              try {
+                const parsed = JSON.parse(item.additionalExamples);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  if (!examplesById.has(item.id)) examplesById.set(item.id, parsed);
+                  if (item.arabic) {
+                    const cleanArabic = item.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+                    if (!examplesByArabic.has(cleanArabic)) examplesByArabic.set(cleanArabic, parsed);
+                  }
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+
+          for (const w of words) {
+            const cleanArabic = (w.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+            const localEx = examplesById.get(w.id) || examplesByArabic.get(cleanArabic);
+            if (localEx && (!w.additionalExamples || w.additionalExamples.length === 0)) {
+              w.additionalExamples = localEx;
+            }
+          }
+
+          // 3. Merge root family from word_root_families table
+          try {
+            const rootFamilyRows = db.prepare("SELECT word_id, root, arabic, family FROM word_root_families WHERE family IS NOT NULL AND family != ''").all() as any[];
+            const familyById = new Map<string, any[]>();
+            const familyByRoot = new Map<string, any[]>();
+            const familyByArabic = new Map<string, any[]>();
+
+            for (const item of rootFamilyRows) {
+              try {
+                const parsed = JSON.parse(item.family);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  if (item.word_id) familyById.set(item.word_id, parsed);
+                  if (item.root) familyByRoot.set(item.root.replace(/\s+/g, '').trim(), parsed);
+                  if (item.arabic) {
+                    const cleanArabic = item.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+                    familyByArabic.set(cleanArabic, parsed);
+                  }
+                }
+              } catch (_) {}
+            }
 
             for (const w of words) {
               const cleanArabic = (w.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
-              const localEx = examplesById.get(w.id) || examplesByArabic.get(cleanArabic);
-              if (localEx && (!w.additionalExamples || w.additionalExamples.length === 0)) {
-                w.additionalExamples = localEx;
+              const cleanRoot = (w.root || '').replace(/\s+/g, '').trim();
+              const localFam = familyById.get(w.id) || (cleanRoot ? familyByRoot.get(cleanRoot) : undefined) || familyByArabic.get(cleanArabic);
+              if (localFam && (!w.rootFamily || w.rootFamily.length === 0)) {
+                w.rootFamily = localFam;
               }
             }
-          }
+          } catch (_) {}
         } catch (mergeErr) {
           console.error('Error merging local SQLite examples:', mergeErr);
         }
@@ -340,29 +399,45 @@ export const dataStore = {
     const supabasePayload = mapWordModelToSupabase(updates);
     let supabaseUpdatedData: any = null;
 
+    // 1. Try Supabase update
     try {
       const { data, error } = await supabase.from('words').update(supabasePayload).eq('id', id).select().single();
       if (!error && data) {
         supabaseUpdatedData = data;
       } else if (error && supabasePayload.additional_examples) {
-        // If Supabase table doesn't have additional_examples column yet, update without that column
+        // If Supabase table doesn't have additional_examples column yet, update other fields
         const strippedPayload = { ...supabasePayload };
         delete strippedPayload.additional_examples;
-        const retryRes = await supabase.from('words').update(strippedPayload).eq('id', id).select().single();
-        if (!retryRes.error && retryRes.data) {
-          supabaseUpdatedData = retryRes.data;
+        if (Object.keys(strippedPayload).length > 0) {
+          const retryRes = await supabase.from('words').update(strippedPayload).eq('id', id).select().single();
+          if (!retryRes.error && retryRes.data) {
+            supabaseUpdatedData = retryRes.data;
+          }
         }
       }
     } catch (err) {}
 
-    // Always update and persist to local SQLite
+    // 2. Persist additional examples to dedicated table
+    if (updates.additionalExamples !== undefined) {
+      try {
+        const jsonExamples = JSON.stringify(updates.additionalExamples);
+        const cleanArabic = (updates.arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+        db.prepare(`
+          INSERT OR REPLACE INTO word_additional_examples (word_id, arabic, examples, updated_at)
+          VALUES (?, ?, ?, ?)
+        `).run(id, cleanArabic, jsonExamples, new Date().toISOString());
+      } catch (exErr) {
+        console.error('Error saving to word_additional_examples:', exErr);
+      }
+    }
+
+    // 3. Always update and persist to local SQLite words table
     try {
-      const existingLocal = db.prepare('SELECT id FROM words WHERE id = ?').get(id);
+      const existingLocal = db.prepare('SELECT id, arabic FROM words WHERE id = ?').get(id) as any;
       if (!existingLocal) {
-        // If word is not in local SQLite yet (e.g. was loaded from Supabase), fetch and insert it
         let baseData = supabaseUpdatedData;
         if (!baseData) {
-          const { data } = await supabase.from('words').select('*').eq('id', id).single();
+          const { data } = await supabase.from('words').select('*').eq('id', id).maybeSingle();
           baseData = data;
         }
         if (baseData) {
@@ -374,16 +449,16 @@ export const dataStore = {
               easeFactor, intervalDays, repetitionCount, nextReviewDate, lastReviewedDate, additionalExamples
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
-            baseData.id, baseData.arabic, baseData.transliteration || '', baseData.english, baseData.word_type || 'noun',
-            baseData.present_tense_i || null, baseData.present_tense_he || null, baseData.root || null,
-            baseData.example_arabic || '', baseData.example_transliteration || '', baseData.example_english || '',
+            baseData.id, baseData.arabic, baseData.transliteration || '', baseData.english, baseData.word_type || baseData.wordType || 'noun',
+            baseData.present_tense_i ?? baseData.presentTenseI ?? null, baseData.present_tense_he ?? baseData.presentTenseHe ?? null, baseData.root || null,
+            baseData.example_arabic ?? baseData.exampleArabic ?? '', baseData.example_transliteration ?? baseData.exampleTransliteration ?? '', baseData.example_english ?? baseData.exampleEnglish ?? '',
             baseData.explanation || '', baseData.topic || 'daily life', baseData.difficulty || 'beginner',
-            baseData.set_id || null, baseData.set_name || null, baseData.date_added || new Date().toISOString(),
-            baseData.times_tested || 0, baseData.times_correct || 0, baseData.times_incorrect || 0,
-            baseData.memory_status || 'new', baseData.ease_factor || 2.5, baseData.interval_days || 0,
-            baseData.repetition_count || 0, baseData.next_review_date || new Date().toISOString(),
-            baseData.last_reviewed_date || null,
-            updates.additionalExamples ? JSON.stringify(updates.additionalExamples) : null
+            baseData.set_id ?? baseData.setId ?? null, baseData.set_name ?? baseData.setName ?? null, baseData.date_added ?? baseData.dateAdded ?? new Date().toISOString(),
+            baseData.times_tested ?? baseData.timesTested ?? 0, baseData.times_correct ?? baseData.timesCorrect ?? 0, baseData.times_incorrect ?? baseData.timesIncorrect ?? 0,
+            baseData.memory_status ?? baseData.memoryStatus ?? 'new', baseData.ease_factor ?? baseData.easeFactor ?? 2.5, baseData.interval_days ?? baseData.intervalDays ?? 0,
+            baseData.repetition_count ?? baseData.repetitionCount ?? 0, baseData.next_review_date ?? baseData.nextReviewDate ?? new Date().toISOString(),
+            baseData.last_reviewed_date ?? baseData.lastReviewedDate ?? null,
+            updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null
           );
         }
       } else {
@@ -403,10 +478,10 @@ export const dataStore = {
             additionalExamples = COALESCE(?, additionalExamples)
           WHERE id = ?
         `).run(
-          updates.timesTested, updates.timesCorrect, updates.timesIncorrect, updates.memoryStatus,
-          updates.easeFactor, updates.intervalDays, updates.repetitionCount, updates.nextReviewDate,
-          updates.lastReviewedDate, updates.arabic, updates.english,
-          updates.additionalExamples ? JSON.stringify(updates.additionalExamples) : null,
+          updates.timesTested ?? null, updates.timesCorrect ?? null, updates.timesIncorrect ?? null, updates.memoryStatus ?? null,
+          updates.easeFactor ?? null, updates.intervalDays ?? null, updates.repetitionCount ?? null, updates.nextReviewDate ?? null,
+          updates.lastReviewedDate ?? null, updates.arabic ?? null, updates.english ?? null,
+          updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null,
           id
         );
       }
@@ -414,11 +489,11 @@ export const dataStore = {
       console.error('Error updating SQLite word:', sqliteErr);
     }
 
-    // Return the updated word with additionalExamples merged
+    // Return the updated word with additionalExamples properly merged
     const localRow = db.prepare('SELECT * FROM words WHERE id = ?').get(id);
     if (localRow) {
       const wordModel = mapSupabaseWordToModel(localRow);
-      if (updates.additionalExamples) {
+      if (updates.additionalExamples !== undefined) {
         wordModel.additionalExamples = updates.additionalExamples;
       }
       return wordModel;
@@ -426,10 +501,21 @@ export const dataStore = {
 
     if (supabaseUpdatedData) {
       const wordModel = mapSupabaseWordToModel(supabaseUpdatedData);
-      if (updates.additionalExamples) {
+      if (updates.additionalExamples !== undefined) {
         wordModel.additionalExamples = updates.additionalExamples;
       }
       return wordModel;
+    }
+
+    // Fallback if neither query returned, load existing word and apply updates
+    const all = await this.getWords();
+    const fallbackWord = all.find(w => w.id === id);
+    if (fallbackWord) {
+      return {
+        ...fallbackWord,
+        ...updates,
+        additionalExamples: updates.additionalExamples !== undefined ? updates.additionalExamples : fallbackWord.additionalExamples,
+      };
     }
 
     return null;
@@ -440,7 +526,10 @@ export const dataStore = {
     try {
       await supabase.from('words').delete().eq('id', id);
     } catch (_) {}
-    db.prepare('DELETE FROM words WHERE id = ?').run(id);
+    try {
+      db.prepare('DELETE FROM words WHERE id = ?').run(id);
+      db.prepare('DELETE FROM word_additional_examples WHERE word_id = ?').run(id);
+    } catch (_) {}
     return true;
   },
 
@@ -451,7 +540,10 @@ export const dataStore = {
       await supabase.from('words').delete().in('id', ids);
     } catch (_) {}
     const placeholders = ids.map(() => '?').join(',');
-    db.prepare(`DELETE FROM words WHERE id IN (${placeholders})`).run(...ids);
+    try {
+      db.prepare(`DELETE FROM words WHERE id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM word_additional_examples WHERE word_id IN (${placeholders})`).run(...ids);
+    } catch (_) {}
     return true;
   },
 
@@ -837,5 +929,95 @@ export const dataStore = {
       db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
     } catch (_) {}
     return true;
+  },
+
+  // Save 6-10 generated root family words to Supabase cloud & SQLite cache
+  async saveRootFamily(wordId: string, root: string, arabic: string, family: RootFamilyWord[]): Promise<void> {
+    const jsonFamily = JSON.stringify(family);
+    const cleanArabic = (arabic || '').replace(/[\u064B-\u065F\u0670]/g, '').trim();
+    const cleanRoot = (root || '').trim();
+
+    // 1. Try Supabase dedicated table
+    try {
+      await supabase.from('word_root_families').upsert([{
+        word_id: wordId,
+        root: cleanRoot,
+        arabic: cleanArabic,
+        family: family,
+        updated_at: new Date().toISOString(),
+      }]);
+    } catch (_) {}
+
+    // 1b. Also update root_family on words table in Supabase
+    try {
+      await supabase.from('words').update({ root_family: family }).eq('id', wordId);
+    } catch (_) {}
+
+    // 2. Persist to local SQLite word_root_families
+    try {
+      db.prepare(`
+        INSERT OR REPLACE INTO word_root_families (word_id, root, arabic, family, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(wordId, cleanRoot, cleanArabic, jsonFamily, new Date().toISOString());
+    } catch (e) {
+      console.error('Error saving root family to SQLite:', e);
+    }
+
+    // 2b. Also persist into SQLite words table
+    try {
+      db.prepare('UPDATE words SET rootFamily = ? WHERE id = ?').run(jsonFamily, wordId);
+    } catch (_) {}
+  },
+
+  // Retrieve root family words for a given word
+  async getRootFamily(wordId: string, root?: string, arabic?: string): Promise<RootFamilyWord[]> {
+    // 1. Try Supabase cloud table first
+    try {
+      const { data, error } = await supabase.from('word_root_families').select('family').eq('word_id', wordId).maybeSingle();
+      if (!error && data?.family) {
+        const parsed = typeof data.family === 'string' ? JSON.parse(data.family) : data.family;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+
+    // 2. Try Supabase words table
+    try {
+      const { data, error } = await supabase.from('words').select('root_family').eq('id', wordId).maybeSingle();
+      if (!error && data?.root_family) {
+        const parsed = typeof data.root_family === 'string' ? JSON.parse(data.root_family) : data.root_family;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+
+    // 3. Try SQLite word_root_families table
+    try {
+      const row = db.prepare('SELECT family FROM word_root_families WHERE word_id = ?').get(wordId) as any;
+      if (row?.family) {
+        const parsed = JSON.parse(row.family);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+
+    // 4. Try SQLite by root match or clean Arabic match
+    try {
+      if (root) {
+        const cleanRoot = root.trim();
+        const row = db.prepare('SELECT family FROM word_root_families WHERE root = ?').get(cleanRoot) as any;
+        if (row?.family) {
+          const parsed = JSON.parse(row.family);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+      if (arabic) {
+        const cleanArabic = arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
+        const row = db.prepare('SELECT family FROM word_root_families WHERE arabic = ?').get(cleanArabic) as any;
+        if (row?.family) {
+          const parsed = JSON.parse(row.family);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+    } catch (_) {}
+
+    return [];
   }
 };
