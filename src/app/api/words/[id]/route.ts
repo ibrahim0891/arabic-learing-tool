@@ -42,7 +42,10 @@ export async function PUT(
       const srsResult = calculateNextReview(existingWord, rating);
 
       const nowIso = new Date().toISOString();
-      const isPass = rating >= 3;
+      // "Hard" (2) is a pass in SM-2 terms (quality 3) and advances the recall
+      // streak, so it must count as correct here too — otherwise the stats
+      // contradict the memory status.
+      const isPass = rating >= 2;
       const newTimesCorrect = isPass ? (existingWord.timesCorrect || 0) + 1 : (existingWord.timesCorrect || 0);
       const newTimesIncorrect = !isPass ? (existingWord.timesIncorrect || 0) + 1 : (existingWord.timesIncorrect || 0);
       const newTimesTested = (existingWord.timesTested || 0) + 1;

@@ -86,6 +86,12 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     if (!words[currentIndex]) return;
     const currentWord = words[currentIndex];
 
+    // A card marked "Again" is re-queued once per session (unless it is already
+    // a re-queued copy), which grows the deck by one. Track the deck length we
+    // will have AFTER this action so the end-of-session check is accurate.
+    const willRequeue = rating === 1 && !currentWord.isRequeued;
+    const nextDeckLength = words.length + (willRequeue ? 1 : 0);
+
     try {
       const res = await fetch(`/api/words/${currentWord.id}`, {
         method: 'PUT',
@@ -101,12 +107,12 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
         
         // Intelligently update session deck:
         setWords((prevWords) => {
-          let updated = prevWords.map((w, idx) => (idx === currentIndex ? { ...w, ...updatedWord } : w));
+          const updated = prevWords.map((w, idx) => (idx === currentIndex ? { ...w, ...updatedWord } : w));
 
           // In-Session Intelligent SRS Repetition:
           // If rated "Again" (1), re-queue this card ~4 cards ahead (or at the end of the session)
           // so the user actually gets a chance to practice and retain it before finishing!
-          if (rating === 1) {
+          if (rating === 1 && !prevWords[currentIndex]?.isRequeued) {
             const reinsertIndex = Math.min(updated.length, currentIndex + 4);
             const repeatWord = { ...updatedWord, isRequeued: true };
             updated.splice(reinsertIndex, 0, repeatWord);
@@ -117,7 +123,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
 
       setStudiedCount((prev) => prev + 1);
 
-      if (currentIndex + 1 < words.length) {
+      if (currentIndex + 1 < nextDeckLength) {
         setIsFlipped(false);
         setTimeout(() => {
           setCurrentIndex((prev) => prev + 1);
@@ -189,20 +195,20 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
       <div className="max-w-xl mx-auto text-center py-20 px-8 border border-dashed border-[var(--border-subtle)] rounded-2xl space-y-4">
         <span className="font-arabic text-4xl text-[var(--accent-ochre)] font-bold">مُمْتَاز</span>
         <h3 className="editorial-title text-2xl font-semibold text-[var(--ink-primary)]">
-          No Flashcards Due Right Now!
+          {filter === 'revision' ? 'No Flashcards Due Right Now!' : 'Nothing To Study Yet'}
         </h3>
         <p className="text-sm text-[var(--ink-secondary)] leading-relaxed">
           {filter === 'revision'
             ? 'Great work! All your saved words are fresh in your memory and none are due for review right now.'
             : filter === 'struggling'
             ? 'You have 0 tricky words right now! Keep up the great work.'
-            : 'You haven’t added any words yet. Start by learning a new word set!'}
+            : 'Your Word Bank is empty. Start by generating a new word set to study!'}
         </p>
         <button
           onClick={() => setFilter('all')}
           className="btn-quiet px-6 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
         >
-          Practice All Words
+          {filter === 'revision' || filter === 'struggling' ? 'Practice All Words' : 'Reload'}
         </button>
       </div>
     );
@@ -219,17 +225,16 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
             Practice Session Done!
           </h2>
           <p className="text-sm text-[var(--ink-secondary)] max-w-md mx-auto leading-relaxed">
-            You successfully reviewed <strong className="text-[var(--accent-ochre)]">{studiedCount} words</strong> today. Your spaced repetition schedule has been updated!
+            You completed <strong className="text-[var(--accent-ochre)]">{studiedCount} card reviews</strong> today. Your spaced repetition schedule has been updated!
           </p>
         </div>
 
         <div className="flex gap-4 justify-center pt-2">
           <button
             onClick={() => {
-              setIsCompleted(false);
-              setCurrentIndex(0);
-              setIsFlipped(false);
-              handleShuffle();
+              // Reload a fresh deck for the current filter instead of shuffling
+              // the in-session deck (which may contain re-queued duplicates).
+              fetchWords();
             }}
             className="btn-quiet px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer"
           >

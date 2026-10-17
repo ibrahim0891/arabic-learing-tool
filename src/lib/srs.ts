@@ -4,10 +4,15 @@ import { Word } from './types';
  * SuperMemo SM-2 inspired Spaced Repetition calculation
  * 
  * Rating:
- * 1: Again (forgot completely)
- * 2: Difficult (remembered with effort)
- * 3: Good (remembered correctly with little hesitation)
- * 4: Easy (immediate, effortless recall)
+ * 1: Again (forgot completely)   -> counted as a FAILURE (resets the pass streak)
+ * 2: Difficult (remembered with effort) -> counted as a PASS (SM-2 quality 3)
+ * 3: Good (remembered correctly with little hesitation) -> PASS
+ * 4: Easy (immediate, effortless recall) -> PASS
+ *
+ * `repetitionCount` tracks the current streak of consecutive successful
+ * recalls: it resets to 0 on "Again" and increments on every pass. Memory
+ * status is derived from that streak so it always reflects your CURRENT
+ * recall of the word rather than a lifetime average.
  */
 export function calculateNextReview(word: Word, rating: 1 | 2 | 3 | 4): {
   intervalDays: number;
@@ -16,7 +21,7 @@ export function calculateNextReview(word: Word, rating: 1 | 2 | 3 | 4): {
   nextReviewDate: string;
   memoryStatus: 'new' | 'learning' | 'struggling' | 'mastered';
 } {
-  let { easeFactor, intervalDays, repetitionCount, timesCorrect, timesIncorrect } = word;
+  let { easeFactor, intervalDays, repetitionCount } = word;
 
   // Ensure reasonable defaults
   if (!easeFactor || easeFactor < 1.3) easeFactor = 2.5;
@@ -74,20 +79,23 @@ export function calculateNextReview(word: Word, rating: 1 | 2 | 3 | 4): {
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + intervalDays);
 
-  // Determine memory status
-  // Criteria:
-  // - 'struggling': recently marked 'Again' multiple times or low success rate
-  // - 'mastered': repetitionCount >= 5 and tested multiple times with high accuracy (NEVER marked on first try)
-  // - 'learning': in progress
+  // Determine memory status from the CURRENT recall streak (recency-based),
+  // so old mistakes no longer permanently cap a word below "mastered".
+  // - 'struggling': failed this review, or was struggling and has not yet
+  //   earned 2 consecutive successful recalls (keeps the tag sticky).
+  // - 'mastered': 5 consecutive successful recalls.
+  // - 'learning': in progress.
+  // NOTE: because "Again" resets the streak to 0, a word is never marked
+  // mastered off a single lucky guess — it must be recalled repeatedly.
   let newStatus: 'new' | 'learning' | 'struggling' | 'mastered' = 'learning';
 
-  const totalTested = (timesCorrect || 0) + (timesIncorrect || 0) + 1;
-  const newTimesCorrect = rating >= 3 ? (timesCorrect || 0) + 1 : (timesCorrect || 0);
-  const correctRate = newTimesCorrect / totalTested;
+  const wasStruggling = word.memoryStatus === 'struggling';
 
-  if (rating === 1 || correctRate < 0.5) {
+  if (rating === 1) {
     newStatus = 'struggling';
-  } else if (repetitionCount >= 5 && totalTested >= 5 && correctRate >= 0.85) {
+  } else if (wasStruggling && repetitionCount < 2) {
+    newStatus = 'struggling';
+  } else if (repetitionCount >= 5) {
     newStatus = 'mastered';
   } else {
     newStatus = 'learning';

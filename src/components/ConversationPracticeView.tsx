@@ -324,7 +324,7 @@ export const ConversationPracticeView: React.FC = () => {
           </div>
 
           {/* Conversations List Items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]/40">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
             {isLoadingHistory && historyList.length === 0 ? (
               <div className="p-6 text-center text-xs text-[var(--ink-muted)] flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--accent-ochre)]" />
@@ -351,37 +351,49 @@ export const ConversationPracticeView: React.FC = () => {
                   <div
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
-                    className={`p-3 cursor-pointer transition-all flex items-start gap-3 select-none group border-l-3 ${
+                    className={`relative p-3 rounded-xl cursor-pointer transition-colors flex items-start gap-3 select-none group ${
                       isSelected
-                        ? 'bg-[var(--accent-ochre-dim)]/70 border-[var(--accent-ochre)] shadow-xs'
-                        : 'hover:bg-[var(--bg-surface-elevated)] border-transparent'
+                        ? 'bg-[var(--accent-ochre-dim)] shadow-sm'
+                        : 'hover:bg-[var(--accent-ochre-dim)]/45'
                     }`}
                   >
                     {/* Vibrant Initial Avatar */}
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${palette} font-arabic font-bold flex items-center justify-center text-sm shrink-0 mt-0.5 shadow-xs border`}>
+                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${palette} font-arabic font-bold flex items-center justify-center text-base shrink-0 shadow-xs border transition-transform ${
+                      isSelected ? 'scale-105' : ''
+                    }`}>
                       {conv.speakers[0] ? conv.speakers[0].charAt(0) : 'ح'}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <h3 className="font-semibold text-xs text-[var(--ink-primary)] truncate">
-                          {conv.title}
-                        </h3>
-                        <span className="text-[9px] text-[var(--accent-ochre)] font-mono shrink-0 uppercase bg-[var(--accent-ochre-dim)] px-1.5 py-0.2 rounded-xs border border-[var(--accent-ochre)]/20 font-bold">
-                          {conv.difficulty.slice(0, 3)}
-                        </span>
-                      </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      {/* Title */}
+                      <h3 className={`font-semibold text-[13px] truncate pr-6 ${
+                        isSelected ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-primary)]'
+                      }`}>
+                        {conv.title}
+                      </h3>
 
-                      {/* Arabic snippet from last message */}
+                      {/* Arabic preview from last message */}
                       {lastMsg && (
-                        <p className="text-[12px] text-[var(--ink-secondary)] font-arabic truncate text-right dir-rtl leading-snug">
+                        <p
+                          dir="rtl"
+                          className="font-arabic text-[13px] text-[var(--ink-secondary)] truncate leading-snug"
+                        >
                           {lastMsg.arabic}
                         </p>
                       )}
 
-                      <div className="flex items-center justify-between text-[10px] text-[var(--ink-muted)] mt-1 font-mono">
+                      {/* Meta: speakers, difficulty & length */}
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-muted)]">
                         <span className="truncate">{conv.speakers.join(', ')}</span>
-                        <span>{conv.messages.length} lines</span>
+                        <span className="shrink-0 flex items-center gap-1.5">
+                          <span className="uppercase tracking-wider font-bold text-[9px] text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-1.5 py-0.5 rounded-md border border-[var(--accent-ochre)]/25">
+                            {conv.difficulty.slice(0, 3)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3" />
+                            {conv.messages.length} lines
+                          </span>
+                        </span>
                       </div>
                     </div>
 
@@ -389,7 +401,7 @@ export const ConversationPracticeView: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleDelete(conv.id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-[var(--ink-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-md transition shrink-0"
+                      className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 p-1 text-[var(--ink-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
                       title="Delete chat"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

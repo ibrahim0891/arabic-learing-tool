@@ -892,19 +892,19 @@ export default function WordDetailPage() {
                         </p>
 
                         {/* Sentence Box */}
-                        <div className="p-2.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-1">
+                        <div className="p-3 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-1.5">
                           <div className="flex items-start justify-between gap-1.5">
-                            <p dir="rtl" className="font-arabic text-sm sm:text-base font-medium text-[var(--ink-primary)] harakat-text text-right flex-1 leading-relaxed">
+                            <p dir="rtl" className="font-arabic text-lg sm:text-xl font-medium text-[var(--ink-primary)] harakat-text text-right flex-1 leading-relaxed">
                               {item.exampleArabic}
                             </p>
                             <AudioPronounceButton arabicText={item.exampleArabic} size="sm" />
                           </div>
                           {item.exampleTransliteration && (
-                            <p className="text-[10px] font-mono text-[var(--ink-muted)]">
+                            <p className="text-xs font-mono text-[var(--ink-muted)]">
                               {item.exampleTransliteration}
                             </p>
                           )}
-                          <p className="text-[11px] text-[var(--ink-secondary)] italic font-serif">
+                          <p className="text-sm text-[var(--ink-secondary)] italic font-serif">
                             "{item.exampleEnglish}"
                           </p>
                         </div>
