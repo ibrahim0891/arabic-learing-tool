@@ -29,6 +29,13 @@ export interface DailySentence {
   updatedAt: string; // ISO string
 }
 
+export interface WordBreakdownItem {
+  arabic: string; // The individual word exactly as it appears (with tashkeel)
+  transliteration: string; // Phonetic transliteration of the isolated/in-context word
+  english: string; // Contextual meaning of the word in this sentence
+  note?: string; // Optional short grammatical / usage note
+}
+
 export interface ChatMessage {
   id: string;
   speakerName: string;
@@ -36,6 +43,7 @@ export interface ChatMessage {
   arabic: string; // Full tashkeel in White Dialect
   transliteration: string;
   english: string;
+  breakdown?: WordBreakdownItem[]; // Lazily generated word-by-word analysis
 }
 
 export interface ConversationSession {

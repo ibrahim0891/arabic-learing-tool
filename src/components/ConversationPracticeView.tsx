@@ -19,7 +19,7 @@ import {
   CheckCircle2,
   BookOpen
 } from 'lucide-react';
-import { ConversationSession, ChatMessage } from '@/lib/types';
+import { ConversationSession, ChatMessage, WordBreakdownItem } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { Button } from './ui/Button';
 
@@ -38,6 +38,9 @@ const AVATAR_PALETTES = [
   'from-rose-500/20 to-pink-500/20 text-rose-500 border-rose-500/30',
   'from-violet-500/20 to-purple-500/20 text-violet-500 border-violet-500/30',
 ];
+
+// Max word rows shown before the breakdown list collapses behind a "Show all" toggle
+const BREAKDOWN_PREVIEW_COUNT = 5;
 
 const SPEAKER_STYLES = [
   {
@@ -87,6 +90,12 @@ export const ConversationPracticeView: React.FC = () => {
   // Interactive message bubble state: tracks which message has its translation/transliteration revealed
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // On-demand AI word-by-word breakdown state
+  const [breakdownLoadingId, setBreakdownLoadingId] = useState<string | null>(null);
+  const [breakdownError, setBreakdownError] = useState<string | null>(null);
+  // Which message breakdowns are fully expanded (others collapse to a preview)
+  const [expandedBreakdownIds, setExpandedBreakdownIds] = useState<Record<string, boolean>>({});
 
   // Mobile sidebar toggle
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -207,6 +216,63 @@ export const ConversationPracticeView: React.FC = () => {
       setConfirmDeleteId(null);
     } catch (err) {
       console.error('Delete error:', err);
+    }
+  };
+
+  // Generate an on-demand word-by-word breakdown for a single dialogue line
+  const handleGenerateBreakdown = async (msg: ChatMessage, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (breakdownLoadingId) return;
+
+    setBreakdownError(null);
+    setBreakdownLoadingId(msg.id);
+
+    try {
+      const res = await fetch('/api/conversations/breakdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          arabic: msg.arabic,
+          english: msg.english,
+          conversationId: activeConversation?.id,
+          messageId: msg.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate word breakdown');
+      }
+
+      const data = await res.json();
+      const breakdown: WordBreakdownItem[] = data.breakdown || [];
+
+      const applyBreakdown = (conv: ConversationSession | null): ConversationSession | null => {
+        if (!conv) return conv;
+        return {
+          ...conv,
+          messages: conv.messages.map((m) => (m.id === msg.id ? { ...m, breakdown } : m)),
+        };
+      };
+
+      setActiveConversation((prev) => {
+        const updated = applyBreakdown(prev);
+        if (updated) {
+          try {
+            localStorage.setItem('fasih_active_conversation', JSON.stringify(updated));
+          } catch (_) {}
+        }
+        return updated;
+      });
+
+      setHistoryList((prev) =>
+        prev.map((c) => (c.id === activeConversation?.id ? applyBreakdown(c) || c : c))
+      );
+    } catch (err: any) {
+      console.error(err);
+      setBreakdownError(err?.message || 'Error generating word breakdown');
+    } finally {
+      setBreakdownLoadingId(null);
     }
   };
 
@@ -477,6 +543,12 @@ export const ConversationPracticeView: React.FC = () => {
                   const isFirstSpeaker = speakerIndex <= 0;
                   const style = SPEAKER_STYLES[(speakerIndex >= 0 ? speakerIndex : idx) % SPEAKER_STYLES.length];
                   const isExpanded = expandedMessageId === msg.id;
+                  const breakdownWords = msg.breakdown || [];
+                  const isBreakdownOpen = !!expandedBreakdownIds[msg.id];
+                  const visibleBreakdownWords = isBreakdownOpen
+                    ? breakdownWords
+                    : breakdownWords.slice(0, BREAKDOWN_PREVIEW_COUNT);
+                  const hasMoreBreakdown = breakdownWords.length > BREAKDOWN_PREVIEW_COUNT;
 
                   return (
                     <div
@@ -545,6 +617,108 @@ export const ConversationPracticeView: React.FC = () => {
                                 <p className="text-xs sm:text-sm text-[var(--ink-primary)] italic font-serif">
                                   "{msg.english}"
                                 </p>
+                              </div>
+
+                              {/* Word-by-word AI breakdown (generated on demand) */}
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[9px] uppercase tracking-wider font-mono text-[var(--accent-ochre)] font-bold">
+                                    Word by word {breakdownWords.length > 0 ? `(${breakdownWords.length})` : ''}
+                                  </span>
+                                  {breakdownWords.length === 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleGenerateBreakdown(msg, e)}
+                                      disabled={breakdownLoadingId === msg.id}
+                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-[#9a5d16] to-[#b87320] hover:from-[#834e10] hover:to-[#9a5d16] text-white shadow-xs transition cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                                    >
+                                      {breakdownLoadingId === msg.id ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                          <span>Analyzing words...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Sparkles className="w-3 h-3" />
+                                          <span>Break down words</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+
+                                {breakdownError && breakdownLoadingId !== msg.id && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-red-400">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    <span>{breakdownError}</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleGenerateBreakdown(msg, e)}
+                                      className="underline hover:text-red-300 cursor-pointer"
+                                    >
+                                      Retry
+                                    </button>
+                                  </div>
+                                )}
+
+                                {breakdownWords.length > 0 && (
+                                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-surface)]">
+                                    <div className="divide-y divide-[var(--border-subtle)]/70">
+                                      {visibleBreakdownWords.map((w, wIdx) => (
+                                        <div
+                                          key={`${msg.id}_w_${wIdx}`}
+                                          className="flex items-center gap-2.5 px-2.5 py-1.5"
+                                        >
+                                          <span
+                                            dir="rtl"
+                                            className="font-arabic text-base sm:text-lg font-semibold text-[var(--ink-primary)] shrink-0 leading-snug"
+                                          >
+                                            {w.arabic}
+                                          </span>
+                                          <div className="flex-1 min-w-0 text-left">
+                                            {w.transliteration && (
+                                              <span className="font-mono text-[11px] text-[var(--accent-ochre)] leading-tight">
+                                                {w.transliteration}
+                                              </span>
+                                            )}
+                                            <span className="block text-[11px] text-[var(--ink-secondary)] leading-tight">
+                                              {w.english}
+                                              {w.note ? (
+                                                <span className="text-[var(--ink-muted)] font-mono"> · {w.note}</span>
+                                              ) : null}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {hasMoreBreakdown && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedBreakdownIds((prev) => ({
+                                            ...prev,
+                                            [msg.id]: !prev[msg.id],
+                                          }));
+                                        }}
+                                        className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre-dim)] border-t border-[var(--border-subtle)]/70 transition cursor-pointer"
+                                      >
+                                        {isBreakdownOpen ? (
+                                          <>
+                                            <span>Collapse</span>
+                                            <ChevronUp className="w-3 h-3" />
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span>Show all {breakdownWords.length} words</span>
+                                            <ChevronDown className="w-3 h-3" />
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
