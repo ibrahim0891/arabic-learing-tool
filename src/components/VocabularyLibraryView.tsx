@@ -15,7 +15,13 @@ import {
   Square,
   BookOpen,
   Layers,
-  ChevronRight
+  ChevronRight,
+  BarChart3,
+  Trophy,
+  BookMarked,
+  Flame,
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
@@ -30,11 +36,15 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
 }) => {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [words, setWords] = useState<Word[]>([]);
+  // allWords holds the complete (unfiltered) list fetched from the API
+  const [allWords, setAllWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('all');
+
+  // Progress modal
+  const [showProgressModal, setShowProgressModal] = useState(false);
 
   // Multiple selection state
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
@@ -61,27 +71,58 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Fetch all words once; filtering is done client-side so tab switches are instant
   useEffect(() => {
     setMounted(true);
     fetchWords();
-  }, [searchQuery, statusFilter, topicFilter]);
+  }, [topicFilter]);
 
   const fetchWords = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchQuery) params.set('q', searchQuery);
-      if (statusFilter !== 'all') params.set('status', statusFilter);
       if (topicFilter !== 'all') params.set('topic', topicFilter);
 
       const res = await fetch(`/api/words?${params.toString()}`);
       const data = await res.json();
-      setWords(data || []);
+      setAllWords(data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ---- Client-side derived word list ----
+  const words = allWords.filter(w => {
+    // Tab filter
+    if (statusFilter !== 'all') {
+      const status = w.memoryStatus || 'new';
+      if (statusFilter === 'new' && status !== 'new') return false;
+      if (statusFilter === 'learning' && status !== 'learning') return false;
+      if (statusFilter === 'struggling' && status !== 'struggling') return false;
+      if (statusFilter === 'mastered' && status !== 'mastered') return false;
+    }
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      return (
+        (w.arabic || '').includes(q) ||
+        (w.english || '').toLowerCase().includes(q) ||
+        (w.transliteration || '').toLowerCase().includes(q) ||
+        (w.topic || '').toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  // Tab counts
+  const tabCounts = {
+    all: allWords.length,
+    new: allWords.filter(w => (w.memoryStatus || 'new') === 'new').length,
+    learning: allWords.filter(w => w.memoryStatus === 'learning').length,
+    struggling: allWords.filter(w => w.memoryStatus === 'struggling').length,
+    mastered: allWords.filter(w => w.memoryStatus === 'mastered').length,
   };
 
   const toggleSelectWord = (id: string) => {
@@ -121,7 +162,7 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
         throw new Error('Failed to delete selected words');
       }
 
-      setWords((prev) => prev.filter((w) => !selectedWordIds.has(w.id)));
+      setAllWords((prev) => prev.filter((w) => !selectedWordIds.has(w.id)));
       setSelectedWordIds(new Set());
       setShowBatchConfirm(false);
       if (onWordCountChange) onWordCountChange();
@@ -138,7 +179,7 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
 
     try {
       await fetch(`/api/words/${id}`, { method: 'DELETE' });
-      setWords((prev) => prev.filter((w) => w.id !== id));
+      setAllWords((prev) => prev.filter((w) => w.id !== id));
       setSelectedWordIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
@@ -215,7 +256,7 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
       }
 
       setIsModalOpen(false);
-      fetchWords();
+      fetchWords(); // reload all words after save
       if (onWordCountChange) onWordCountChange();
     } catch (err: any) {
       setFormError(err.message || 'Error saving word');
@@ -224,115 +265,224 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
     }
   };
 
+  // Launch casual flashcard practice for the current tab / selection (does not impact learning metrics)
+  const handleStartFlashcards = () => {
+    if (words.length === 0) return;
+    const tabLabels: Record<string, string> = {
+      all: 'All Words',
+      new: 'New Words',
+      learning: 'Learning Words',
+      struggling: 'Needs Practice Words',
+      mastered: 'Mastered Words',
+    };
+    const activeLabel = tabLabels[statusFilter] || `${statusFilter} Words`;
+
+    try {
+      const selectedWords = selectedWordIds.size > 0
+        ? words.filter((w) => selectedWordIds.has(w.id))
+        : words;
+
+      const payload = {
+        ids: selectedWords.map((w) => w.id),
+        tab: statusFilter,
+        label: selectedWordIds.size > 0 ? `${selectedWords.length} Selected Words` : activeLabel,
+        practiceOnly: true,
+      };
+      sessionStorage.setItem('fasih_practice_deck', JSON.stringify(payload));
+    } catch (_) {}
+
+    router.push(`/flashcards?mode=practice&status=${statusFilter}`);
+  };
+
+  // Progress stats from full unfiltered allWords
+  const masteredWords = allWords.filter(w => w.memoryStatus === 'mastered');
+  const learningWords = allWords.filter(w => w.memoryStatus === 'learning');
+  const strugglingWords = allWords.filter(w => w.memoryStatus === 'struggling');
+  const newWords = allWords.filter(w => w.memoryStatus === 'new' || !w.memoryStatus);
+  const totalWords = allWords.length;
+  const masteredPct = totalWords > 0 ? Math.round((masteredWords.length / totalWords) * 100) : 0;
+  const learningPct = totalWords > 0 ? Math.round((learningWords.length / totalWords) * 100) : 0;
+  const strugglingPct = totalWords > 0 ? Math.round((strugglingWords.length / totalWords) * 100) : 0;
+  const dueNow = allWords.filter(w => w.nextReviewDate && new Date(w.nextReviewDate).getTime() <= Date.now());
+
   return (
-    <div className="space-y-8 animate-fadeIn w-full max-w-7xl mx-auto">
-      {/* Friendly Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border-subtle)] pb-6">
-        <div className="space-y-1">
-          <div className="text-xs uppercase tracking-wider font-semibold text-[var(--accent-ochre)]">
-            My Word Bank
+    <div className="space-y-4 sm:space-y-5 animate-fadeIn w-full max-w-7xl mx-auto">
+      {/* Friendly Compact Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[var(--border-subtle)] pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2 py-0.5 rounded-md">
+              My Word Bank
+            </span>
+            <span className="text-xs text-[var(--ink-muted)]">
+              {allWords.length} saved {allWords.length === 1 ? 'word' : 'words'}
+            </span>
           </div>
-          <h1 className="editorial-title text-3xl font-semibold text-[var(--ink-primary)]">
+          <h1 className="editorial-title text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] mt-1">
             Your Arabic Vocabulary Library
           </h1>
-          <p className="text-xs text-[var(--ink-muted)]">
-            You have {words.length} saved words. Search, filter, practice, or add your own custom words anytime.
-          </p>
         </div>
 
-        <Button
-          onClick={handleOpenAdd}
-          variant="primary"
-          size="sm"
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Add Word Manually
-        </Button>
-      </div>
-
-      {/* Search Toolbar */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-sm">
-        <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 text-[var(--ink-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search Arabic, pronunciation, or English meaning..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-sm placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] shadow-xs"
-          />
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-sm focus:outline-none shadow-xs"
+        <div className="flex items-center gap-2">
+          <button
+            id="learning-progress-btn"
+            onClick={() => setShowProgressModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--ink-secondary)] hover:border-[var(--accent-ochre)] hover:text-[var(--accent-ochre)] transition cursor-pointer"
           >
-            <option value="all">All Progress Levels</option>
-            <option value="new">New (Not yet tested)</option>
-            <option value="learning">Currently Learning</option>
-            <option value="struggling">Needs More Practice</option>
-            <option value="mastered">Mastered (Well Known)</option>
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={topicFilter}
-            onChange={(e) => setTopicFilter(e.target.value)}
-            className="w-full p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-sm focus:outline-none shadow-xs"
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Progress</span>
+          </button>
+          <Button
+            onClick={handleOpenAdd}
+            variant="primary"
+            size="sm"
+            leftIcon={<Plus className="w-4 h-4" />}
           >
-            <option value="all">All Topics</option>
-            <option value="daily life">Daily Life</option>
-            <option value="food">Food & Dining</option>
-            <option value="travel">Travel</option>
-            <option value="technology">Technology</option>
-            <option value="work">Work & School</option>
-            <option value="emotions">Feelings & Small Talk</option>
-          </select>
+            Add Word Manually
+          </Button>
         </div>
       </div>
 
-      {/* Bulk Action Toolbar */}
-      {words.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl text-xs">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="flex items-center gap-2 font-medium text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] cursor-pointer transition select-none"
-            >
-              {words.every((w) => selectedWordIds.has(w.id)) ? (
-                <CheckSquare className="w-4 h-4 text-[var(--accent-ochre)]" />
-              ) : (
-                <Square className="w-4 h-4 text-[var(--ink-muted)]" />
-              )}
-              <span>
-                {words.every((w) => selectedWordIds.has(w.id))
-                  ? 'Deselect All'
-                  : `Select All (${words.length})`}
-              </span>
-            </button>
+      {/* Unified Toolbar: Status Tabs + Search & Topic (Compact Desktop Layout) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-1.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+        {/* Status Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+          {([
+            { key: 'all',        label: 'All',            dotColor: '' },
+            { key: 'new',        label: 'New',            dotColor: 'bg-[var(--ink-muted)]' },
+            { key: 'learning',   label: 'Learning',       dotColor: 'bg-[var(--accent-cypress)]' },
+            { key: 'struggling', label: 'Needs Practice', dotColor: 'bg-[var(--accent-terracotta)]' },
+            { key: 'mastered',   label: 'Mastered',       dotColor: 'bg-[var(--accent-ochre)]' },
+          ] as const).map(tab => {
+            const isActive = statusFilter === tab.key;
+            const count = tabCounts[tab.key];
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setStatusFilter(tab.key); setSelectedWordIds(new Set()); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-[var(--accent-ochre)] text-white shadow-xs"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface-elevated)]"
+                }`}
+              >
+                {tab.dotColor && !isActive && (
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${tab.dotColor}`} />
+                )}
+                <span>{tab.label}</span>
+                <span
+                  className={`min-w-[18px] text-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    isActive
+                      ? "bg-white/25 text-white"
+                      : "bg-[var(--border-subtle)] text-[var(--ink-muted)]"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-            {selectedWordIds.size > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] border border-[var(--accent-ochre)]/20">
-                {selectedWordIds.size} selected
-              </span>
+        {/* Search, Topic Filters & Start Flashdeck Button */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+          <div className="relative w-full sm:w-56">
+            <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search words, English..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--ink-muted)] hover:text-[var(--ink-primary)] cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
             )}
           </div>
 
-          {selectedWordIds.size > 0 && (
+          <div className="w-32 sm:w-36 shrink-0">
+            <select
+              value={topicFilter}
+              onChange={(e) => setTopicFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Topics</option>
+              <option value="daily life">Daily Life</option>
+              <option value="food">Food & Dining</option>
+              <option value="travel">Travel</option>
+              <option value="technology">Technology</option>
+              <option value="work">Work & School</option>
+              <option value="emotions">Feelings</option>
+            </select>
+          </div>
+
+          {/* Start Flashdeck Button */}
+          <button
+            type="button"
+            onClick={handleStartFlashcards}
+            disabled={words.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent-ochre)] hover:brightness-105 active:scale-95 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
+            title="Practice words from this tab in flashcards without affecting memory status or review dates"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Practice Deck ({selectedWordIds.size > 0 ? selectedWordIds.size : words.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Selection Sub-bar / Batch Actions (Eliminates the giant empty Select-All container) */}
+      {words.length > 0 && (
+        selectedWordIds.size > 0 ? (
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2 bg-[var(--accent-ochre-dim)] border border-[var(--accent-ochre)]/30 rounded-xl text-xs animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="flex items-center gap-2 font-semibold text-[var(--accent-ochre)] cursor-pointer select-none"
+              >
+                <CheckSquare className="w-4 h-4 text-[var(--accent-ochre)]" />
+                <span>{selectedWordIds.size} of {words.length} selected</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedWordIds(new Set())}
+                className="text-[11px] underline text-[var(--ink-muted)] hover:text-[var(--ink-primary)] cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setShowBatchConfirm(true)}
-              className="btn-danger flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+              className="btn-danger flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Selected ({selectedWordIds.size})</span>
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-2 py-0.5 text-xs text-[var(--ink-muted)]">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 font-medium hover:text-[var(--ink-primary)] cursor-pointer transition select-none"
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>Select All ({words.length})</span>
+            </button>
+            <span className="text-[11px]">
+              Showing {words.length} of {allWords.length} words
+            </span>
+          </div>
+        )
       )}
 
       {/* Words List */}
@@ -368,73 +518,78 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
             return (
               <div
                 key={w.id}
-                className={`py-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-start px-3 rounded-lg transition-colors ${
+                className={`py-3.5 sm:py-4 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start px-3 rounded-xl transition-colors ${
                   isSelected
                     ? 'bg-[var(--accent-ochre-dim)]/70 border-l-4 border-l-[var(--accent-ochre)]'
                     : 'hover:bg-[var(--accent-ochre-dim)]/40'
                 }`}
               >
                 {/* Arabic Word, Checkbox & Audio */}
-                <div className="md:col-span-3 space-y-1.5">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleSelectWord(w.id);
-                      }}
-                      className="p-1 rounded text-[var(--ink-muted)] hover:text-[var(--accent-ochre)] cursor-pointer transition shrink-0"
-                      title={isSelected ? 'Deselect word' : 'Select word'}
-                      aria-label={`Select ${w.arabic}`}
-                    >
-                      {isSelected ? (
-                        <CheckSquare className="w-5 h-5 text-[var(--accent-ochre)]" />
-                      ) : (
-                        <Square className="w-5 h-5 text-[var(--ink-muted)] hover:text-[var(--ink-primary)]" />
-                      )}
-                    </button>
-                    <AudioPronounceButton arabicText={w.arabic} size="md" />
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/library/${w.id}`)}
-                      className="text-right hover:opacity-85 transition cursor-pointer group text-inherit bg-transparent border-none p-0 inline-flex items-center"
-                      title="Click to view word details & root family"
-                    >
-                      <span className="font-arabic text-4xl sm:text-5xl font-bold text-[var(--accent-ochre)] group-hover:brightness-110 harakat-text">
-                        {w.arabic}
-                      </span>
-                    </button>
-                  </div>
-                  {w.transliteration && (
-                    <div className="text-base font-mono text-[var(--ink-secondary)] pl-[4.5rem] tracking-wide font-medium">
-                      {w.transliteration}
+                <div className="md:col-span-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex items-center gap-1.5 pt-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectWord(w.id);
+                        }}
+                        className="p-1 rounded text-[var(--ink-muted)] hover:text-[var(--accent-ochre)] cursor-pointer transition shrink-0"
+                        title={isSelected ? 'Deselect word' : 'Select word'}
+                        aria-label={`Select ${w.arabic}`}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4 text-[var(--accent-ochre)]" />
+                        ) : (
+                          <Square className="w-4 h-4 text-[var(--ink-muted)] hover:text-[var(--ink-primary)]" />
+                        )}
+                      </button>
+                      <AudioPronounceButton arabicText={w.arabic} size="sm" />
                     </div>
-                  )}
+
+                    <div className="flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/library/${w.id}`)}
+                        className="text-right hover:opacity-85 transition cursor-pointer group text-inherit bg-transparent border-none p-0 inline-flex items-center"
+                        title="Click to view word details & root family"
+                      >
+                        <span className="font-arabic text-3xl sm:text-4xl font-bold text-[var(--accent-ochre)] group-hover:brightness-110 harakat-text">
+                          {w.arabic}
+                        </span>
+                      </button>
+                      {w.transliteration && (
+                        <div className="text-xs sm:text-sm font-mono text-[var(--ink-secondary)] tracking-wide font-medium mt-0.5">
+                          {w.transliteration}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* English & Root */}
-                <div className="md:col-span-3 space-y-2">
+                <div className="md:col-span-3 space-y-1.5">
                   <button
                     type="button"
                     onClick={() => router.push(`/library/${w.id}`)}
-                    className="font-serif text-2xl font-bold text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] text-left transition cursor-pointer block bg-transparent border-none p-0"
+                    className="font-serif text-xl sm:text-2xl font-bold text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] text-left transition cursor-pointer block bg-transparent border-none p-0"
                     title="Click to view word details & root family"
                   >
                     {w.english}
                   </button>
                   <div className="text-xs text-[var(--ink-muted)] flex flex-wrap items-center gap-2">
-                    <span className="capitalize font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">
+                    <span className="capitalize font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
                       {w.wordType}
                     </span>
                     {w.root && (
-                      <span className="text-[var(--ink-secondary)] font-medium">
+                      <span className="text-[var(--ink-secondary)] font-medium text-xs">
                         Root: <strong className="font-mono text-[var(--ink-primary)]">{w.root}</strong>
                       </span>
                     )}
                   </div>
                   {w.presentTenseI && (
                     <div className="pt-0.5">
-                      <span className="font-arabic text-base text-[var(--accent-cypress)] harakat-text font-semibold px-2.5 py-1 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] inline-block">
+                      <span className="font-arabic text-sm text-[var(--accent-cypress)] harakat-text font-semibold px-2 py-0.5 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] inline-block">
                         أَنَا {w.presentTenseI} • هُوَ {w.presentTenseHe || '-'}
                       </span>
                     </div>
@@ -442,9 +597,9 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                 </div>
 
                 {/* Example sentence with Audio & Transliteration */}
-                <div className="md:col-span-4 space-y-2 p-3 sm:p-4 rounded-xl bg-[var(--bg-surface)]/70 border border-[var(--border-subtle)] shadow-xs">
-                  <div className="flex items-start justify-end gap-2.5">
-                    <p className="font-arabic text-xl sm:text-2xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right flex-1">
+                <div className="md:col-span-4 space-y-1.5 p-2.5 sm:p-3 rounded-xl bg-[var(--bg-surface)]/70 border border-[var(--border-subtle)] shadow-xs">
+                  <div className="flex items-start justify-end gap-2">
+                    <p className="font-arabic text-lg sm:text-xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right flex-1">
                       {w.exampleArabic}
                     </p>
                     <AudioPronounceButton
@@ -454,25 +609,25 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                     />
                   </div>
                   {w.exampleTransliteration && (
-                    <p className="text-sm font-mono text-[var(--ink-secondary)] text-left leading-normal font-medium">
+                    <p className="text-xs font-mono text-[var(--ink-secondary)] text-left leading-normal font-medium">
                       {w.exampleTransliteration}
                     </p>
                   )}
                   {w.exampleEnglish && (
-                    <p className="text-sm sm:text-base text-[var(--ink-primary)] italic text-left font-serif leading-relaxed">
+                    <p className="text-xs sm:text-sm text-[var(--ink-primary)] italic text-left font-serif leading-relaxed">
                       "{w.exampleEnglish}"
                     </p>
                   )}
                 </div>
 
                 {/* Status & Actions */}
-                <div className="md:col-span-2 flex flex-col items-end justify-between space-y-3">
+                <div className="md:col-span-2 flex flex-col items-end justify-between space-y-2 h-full">
                   <div className="text-right">
-                    <span className={`text-sm font-bold block ${statusColors}`}>
+                    <span className={`text-xs font-bold block ${statusColors}`}>
                       {statusLabel}
                     </span>
-                    <span className="text-xs text-[var(--ink-muted)] font-medium">
-                      Tested {w.timesTested}x ({accuracy}% correct)
+                    <span className="text-[11px] text-[var(--ink-muted)] font-medium">
+                      Tested {w.timesTested}x ({accuracy}%)
                     </span>
                   </div>
 
@@ -724,6 +879,176 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
                     Delete {selectedWordIds.size} {selectedWordIds.size === 1 ? 'Word' : 'Words'}
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ===================== PROGRESS MODAL ===================== */}
+      {showProgressModal && mounted && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowProgressModal(false); }}
+        >
+          <div className="w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)]">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[var(--accent-ochre-dim)]">
+                  <BarChart3 className="w-4 h-4 text-[var(--accent-ochre)]" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-sm text-[var(--ink-primary)]">Learning Progress</h2>
+                  <p className="text-[11px] text-[var(--ink-muted)]">{totalWords} words in your bank</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowProgressModal(false)}
+                className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--ink-primary)] hover:bg-[var(--border-subtle)] transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Overall mastery ring summary */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Mastery donut visual */}
+                <div className="col-span-2 flex items-center gap-6 p-4 rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)]">
+                  <div className="relative shrink-0">
+                    <svg width="80" height="80" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="32" fill="none" stroke="var(--border-subtle)" strokeWidth="9"/>
+                      {masteredPct > 0 && (
+                        <circle
+                          cx="40" cy="40" r="32"
+                          fill="none"
+                          stroke="var(--accent-cypress)"
+                          strokeWidth="9"
+                          strokeDasharray={`${masteredPct * 2.01} 201`}
+                          strokeLinecap="round"
+                          transform="rotate(-90 40 40)"
+                        />
+                      )}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-bold text-[var(--accent-cypress)]">{masteredPct}%</span>
+                      <span className="text-[9px] text-[var(--ink-muted)] font-semibold uppercase tracking-wide">done</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-sm font-bold text-[var(--ink-primary)]">Overall Mastery</p>
+                    <p className="text-xs text-[var(--ink-muted)] leading-relaxed">
+                      {masteredWords.length} words mastered · {dueNow.length} due for review today
+                    </p>
+                    {dueNow.length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] border border-[var(--accent-ochre)]/20">
+                        <Clock className="w-2.5 h-2.5" /> {dueNow.length} card{dueNow.length !== 1 ? 's' : ''} due now
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status bars */}
+              <div className="space-y-3">
+                {/* Mastered */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-semibold text-[var(--accent-cypress)]">
+                      <Trophy className="w-3.5 h-3.5" /> Mastered
+                    </span>
+                    <span className="font-mono font-bold text-[var(--ink-secondary)]">{masteredWords.length} / {totalWords}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent-cypress)] transition-all duration-700"
+                      style={{ width: `${masteredPct}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-[var(--ink-muted)]">
+                    Next review scheduled · won't appear in daily practice until due
+                  </p>
+                </div>
+
+                {/* Learning */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-semibold text-[var(--accent-ochre)]">
+                      <Sparkles className="w-3.5 h-3.5" /> Currently Learning
+                    </span>
+                    <span className="font-mono font-bold text-[var(--ink-secondary)]">{learningWords.length} / {totalWords}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent-ochre)] transition-all duration-700"
+                      style={{ width: `${learningPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Struggling */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-semibold text-[var(--accent-terracotta)]">
+                      <Flame className="w-3.5 h-3.5" /> Needs More Practice
+                    </span>
+                    <span className="font-mono font-bold text-[var(--ink-secondary)]">{strugglingWords.length} / {totalWords}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent-terracotta)] transition-all duration-700"
+                      style={{ width: `${strugglingPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* New */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-semibold text-[var(--ink-muted)]">
+                      <BookMarked className="w-3.5 h-3.5" /> New (Untested)
+                    </span>
+                    <span className="font-mono font-bold text-[var(--ink-secondary)]">{newWords.length} / {totalWords}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--border-subtle)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--ink-muted)] transition-all duration-700"
+                      style={{ width: totalWords > 0 ? `${Math.round((newWords.length / totalWords) * 100)}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick stat chips */}
+              <div className="grid grid-cols-4 gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <div className="text-center p-2.5 rounded-xl bg-[var(--accent-cypress)]/10 border border-[var(--accent-cypress)]/20">
+                  <p className="text-base font-bold text-[var(--accent-cypress)]">{masteredWords.length}</p>
+                  <p className="text-[10px] text-[var(--ink-muted)] mt-0.5">Mastered</p>
+                </div>
+                <div className="text-center p-2.5 rounded-xl bg-[var(--accent-ochre-dim)] border border-[var(--accent-ochre)]/20">
+                  <p className="text-base font-bold text-[var(--accent-ochre)]">{learningWords.length}</p>
+                  <p className="text-[10px] text-[var(--ink-muted)] mt-0.5">Learning</p>
+                </div>
+                <div className="text-center p-2.5 rounded-xl bg-[var(--accent-terracotta)]/10 border border-[var(--accent-terracotta)]/20">
+                  <p className="text-base font-bold text-[var(--accent-terracotta)]">{strugglingWords.length}</p>
+                  <p className="text-[10px] text-[var(--ink-muted)] mt-0.5">Tricky</p>
+                </div>
+                <div className="text-center p-2.5 rounded-xl bg-[var(--border-subtle)] border border-[var(--border-strong)]">
+                  <p className="text-base font-bold text-[var(--ink-secondary)]">{newWords.length}</p>
+                  <p className="text-[10px] text-[var(--ink-muted)] mt-0.5">New</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end">
+              <button
+                onClick={() => setShowProgressModal(false)}
+                className="btn-ochre px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Got it!
               </button>
             </div>
           </div>

@@ -810,11 +810,22 @@ export const dataStore = {
       return { addedCount: 0 };
     }
 
-    // Insert to Supabase
+    // Insert to Supabase (with fallback if extended columns haven't been migrated yet)
     try {
       const payload = newDrafts.map(mapDraftModelToSupabase);
-      await supabase.from('draft_words').insert(payload);
-    } catch (_) {}
+      const { error: insertErr } = await supabase.from('draft_words').insert(payload);
+      if (insertErr && (insertErr.code === 'PGRST204' || insertErr.message?.includes('column'))) {
+        console.warn('Extended columns missing on Supabase draft_words, inserting base columns:', insertErr.message);
+        // Fallback: strip extended columns so saving to Supabase NEVER fails
+        const basePayload = payload.map((item: any) => {
+          const { plural_arabic, plural_transliteration, plural_english, opposite_arabic, opposite_transliteration, opposite_english, ...rest } = item;
+          return rest;
+        });
+        await supabase.from('draft_words').insert(basePayload);
+      }
+    } catch (sbErr) {
+      console.error('Supabase draft_words insert failed:', sbErr);
+    }
 
     // Insert to SQLite
     try {

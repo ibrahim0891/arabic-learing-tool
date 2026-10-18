@@ -56,6 +56,8 @@ export function generateQuiz(options: GenerateQuizOptions): QuizQuestion[] {
 
     let question: QuizQuestion;
 
+    const uniqueId = `q_${Date.now()}_${qNum}_${Math.random().toString(36).substring(2, 7)}`;
+
     if (qType === 'multiple-choice') {
       // Pick 3 distractor words from the rest of the pool
       const otherWords = words.filter(w => w.id !== word.id);
@@ -92,7 +94,7 @@ export function generateQuiz(options: GenerateQuizOptions): QuizQuestion[] {
       }
 
       question = {
-        id: `q_${Date.now()}_${qNum}`,
+        id: uniqueId,
         wordId: word.id,
         type: 'multiple-choice',
         direction: dir,
@@ -144,7 +146,7 @@ export function generateQuiz(options: GenerateQuizOptions): QuizQuestion[] {
       }
 
       question = {
-        id: `q_${Date.now()}_${qNum}`,
+        id: uniqueId,
         wordId: word.id,
         type: 'fill-in-blank',
         direction: 'ar-to-en',
@@ -184,7 +186,7 @@ export function generateQuiz(options: GenerateQuizOptions): QuizQuestion[] {
       }
 
       question = {
-        id: `q_${Date.now()}_${qNum}`,
+        id: uniqueId,
         wordId: word.id,
         type: 'typing',
         direction: dir,

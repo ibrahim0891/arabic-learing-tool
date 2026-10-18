@@ -120,15 +120,26 @@ body {
 }
 
 /* Explicit high-contrast text rules across both themes - exclude buttons and badges */
-[data-theme='light'] :not(button):not(.btn-ochre):not(.bg-\[var\(--accent-ochre\)\]):not(.bg-\[var\(--accent-cypress\)\]):not(.bg-\[var\(--accent-terracotta\)\]):not(.bg-red-600):not(.bg-emerald-600) > .text-white,
-[data-theme='light'] p.text-white,
-[data-theme='light'] span.text-white:not(button span):not([class*="bg-"] span) {
+.badge-cypress,
+[data-theme='light'] .badge-cypress,
+[data-theme='light'] .badge-cypress *,
+[data-theme='dark'] .badge-cypress,
+[data-theme='dark'] .badge-cypress * {
+  background-color: var(--accent-cypress) !important;
+  color: #ffffff !important;
+}
+
+[data-theme='light'] :not(button):not(.badge-cypress):not(.btn-ochre):not(.bg-\[var\(--accent-ochre\)\]):not(.bg-\[var\(--accent-cypress\)\]):not(.bg-\[var\(--accent-terracotta\)\]):not(.bg-red-600):not(.bg-emerald-600) > .text-white,
+[data-theme='light'] p.text-white:not(.badge-cypress *),
+[data-theme='light'] span.text-white:not(button span):not(.badge-cypress *):not([class*="bg-"] span) {
   color: var(--ink-primary);
 }
 [data-theme='light'] button .text-white,
 [data-theme='light'] button.text-white,
 [data-theme='light'] .btn-ochre,
-[data-theme='light'] .bg-\[var\(--accent-ochre\)\].text-white {
+[data-theme='light'] .bg-\[var\(--accent-ochre\)\].text-white,
+[data-theme='light'] .bg-\[var\(--accent-cypress\)\].text-white,
+[data-theme='light'] .badge-cypress {
   color: #ffffff !important;
 }
 

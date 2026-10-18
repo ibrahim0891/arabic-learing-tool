@@ -116,31 +116,37 @@ export const TestGeneratorView: React.FC<TestGeneratorProps> = ({
 
   const handleNextQuestion = () => {
     const q = questions[currentQIndex];
-    if (q.type === 'typing' && currentInput.trim()) {
-      setUserAnswers((prev) => ({
-        ...prev,
-        [q.id]: currentInput.trim(),
-      }));
+    let updatedAnswers = userAnswers;
+
+    if (q.type === 'typing') {
+      const trimmed = currentInput.trim();
+      updatedAnswers = {
+        ...userAnswers,
+        [q.id]: trimmed,
+      };
+      setUserAnswers(updatedAnswers);
     }
 
     if (currentQIndex + 1 < questions.length) {
       setCurrentQIndex((prev) => prev + 1);
       const nextQ = questions[currentQIndex + 1];
-      setCurrentInput(userAnswers[nextQ?.id] || '');
+      setCurrentInput(updatedAnswers[nextQ?.id] || '');
     } else {
-      handleFinishTest();
+      handleFinishTest(updatedAnswers);
     }
   };
 
-  const handleFinishTest = async () => {
+  const handleFinishTest = async (finalAnswers?: Record<string, string>) => {
     setIsGrading(true);
     setError(null);
+
+    const answersToUse = finalAnswers || userAnswers;
 
     try {
       const answersPayload = questions.map((q) => ({
         questionId: q.id,
         wordId: q.wordId,
-        userAnswer: (q.type === 'typing' && currentQIndex === questions.length - 1 ? currentInput : userAnswers[q.id]) || '',
+        userAnswer: answersToUse[q.id] || '',
         correctAnswer: q.correctAnswer,
         acceptableAnswers: q.acceptableAnswers || [],
       }));
@@ -385,9 +391,15 @@ export const TestGeneratorView: React.FC<TestGeneratorProps> = ({
             <button
               onClick={() => {
                 if (currentQIndex > 0) {
+                  const q = questions[currentQIndex];
+                  let updated = userAnswers;
+                  if (q.type === 'typing') {
+                    updated = { ...userAnswers, [q.id]: currentInput.trim() };
+                    setUserAnswers(updated);
+                  }
                   setCurrentQIndex((prev) => prev - 1);
                   const prevQ = questions[currentQIndex - 1];
-                  setCurrentInput(userAnswers[prevQ?.id] || '');
+                  setCurrentInput(updated[prevQ?.id] || '');
                 }
               }}
               disabled={currentQIndex === 0}

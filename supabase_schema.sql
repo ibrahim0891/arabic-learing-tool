@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS public.words (
 -- Migration for existing words table
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS additional_examples JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS root_family JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_arabic TEXT;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_transliteration TEXT;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_english TEXT;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS opposite_arabic TEXT;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS opposite_transliteration TEXT;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS opposite_english TEXT;
 
 -- Root Families Dedicated Table (Cross-device cloud sync)
 CREATE TABLE IF NOT EXISTS public.word_root_families (
@@ -110,8 +116,22 @@ CREATE TABLE IF NOT EXISTS public.draft_words (
   topic TEXT NOT NULL DEFAULT 'daily life',
   difficulty TEXT NOT NULL DEFAULT 'beginner',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  source_topic TEXT
+  source_topic TEXT,
+  plural_arabic TEXT,
+  plural_transliteration TEXT,
+  plural_english TEXT,
+  opposite_arabic TEXT,
+  opposite_transliteration TEXT,
+  opposite_english TEXT
 );
+
+-- Migrations for existing draft_words table if already created earlier
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS plural_arabic TEXT;
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS plural_transliteration TEXT;
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS plural_english TEXT;
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS opposite_arabic TEXT;
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS opposite_transliteration TEXT;
+ALTER TABLE public.draft_words ADD COLUMN IF NOT EXISTS opposite_english TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_draft_words_arabic ON public.draft_words(arabic);
 

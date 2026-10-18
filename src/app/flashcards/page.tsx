@@ -7,12 +7,16 @@ import { useStats } from '@/context/StatsContext';
 
 function FlashcardContent() {
   const searchParams = useSearchParams();
-  const filter = searchParams.get('filter') || 'all';
+  const filter = searchParams.get('filter') || 'smart';
+  const mode = searchParams.get('mode') || undefined;
+  const status = searchParams.get('status') || undefined;
   const { refreshStats } = useStats();
 
   return (
     <FlashcardStudyView
       initialFilter={filter}
+      initialMode={mode}
+      initialStatus={status}
       onSessionComplete={() => refreshStats()}
     />
   );
