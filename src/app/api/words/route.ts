@@ -123,3 +123,38 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
+// PATCH /api/words - Batch update words (e.g. status)
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { ids, memoryStatus } = body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
+    }
+    if (!memoryStatus) {
+      return NextResponse.json({ error: 'memoryStatus is required' }, { status: 400 });
+    }
+
+    const updates: any = { memoryStatus };
+    if (memoryStatus === 'mastered') {
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 14); // Scheduled review in 14 days
+      updates.nextReviewDate = nextDate.toISOString();
+      updates.repetitionCount = 5;
+      updates.intervalDays = 14;
+    } else if (memoryStatus === 'learning') {
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 1);
+      updates.nextReviewDate = nextDate.toISOString();
+    } else if (memoryStatus === 'struggling') {
+      updates.nextReviewDate = new Date().toISOString(); // due immediately
+    }
+
+    await dataStore.updateWordsBatch(ids, updates);
+    return NextResponse.json({ success: true, count: ids.length, memoryStatus });
+  } catch (error) {
+    console.error('Error batch updating words:', error);
+    return NextResponse.json({ error: 'Failed to update words' }, { status: 500 });
+  }
+}
+

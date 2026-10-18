@@ -736,6 +736,26 @@ export const dataStore = {
     return true;
   },
 
+  // Update multiple words in batch (e.g. status)
+  async updateWordsBatch(ids: string[], updates: Partial<Word>): Promise<boolean> {
+    if (!ids || ids.length === 0) return true;
+    const supabasePayload = mapWordModelToSupabase(updates);
+    try {
+      await supabase.from('words').update(supabasePayload).in('id', ids);
+    } catch (_) {}
+
+    try {
+      const keys = Object.keys(updates);
+      if (keys.length > 0) {
+        const setClauses = keys.map(k => `${k} = ?`).join(', ');
+        const values = keys.map(k => (updates as any)[k]);
+        const placeholders = ids.map(() => '?').join(',');
+        db.prepare(`UPDATE words SET ${setClauses} WHERE id IN (${placeholders})`).run(...values, ...ids);
+      }
+    } catch (_) {}
+    return true;
+  },
+
   // Get word sets
   async getWordSets(): Promise<WordSet[]> {
     try {

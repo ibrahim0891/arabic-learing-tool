@@ -45,9 +45,10 @@ export async function PUT(
       // streak, so it must count as correct here too — otherwise the stats
       // contradict the memory status.
       const isPass = rating >= 2;
+      const isUpdate = !!body.isUpdateRating;
+      const newTimesTested = isUpdate ? (existingWord.timesTested || 1) : (existingWord.timesTested || 0) + 1;
       const newTimesCorrect = isPass ? (existingWord.timesCorrect || 0) + 1 : (existingWord.timesCorrect || 0);
       const newTimesIncorrect = !isPass ? (existingWord.timesIncorrect || 0) + 1 : (existingWord.timesIncorrect || 0);
-      const newTimesTested = (existingWord.timesTested || 0) + 1;
 
       const updated = await dataStore.updateWord(id, {
         timesTested: newTimesTested,

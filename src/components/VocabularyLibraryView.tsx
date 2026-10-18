@@ -21,7 +21,8 @@ import {
   BookMarked,
   Flame,
   Sparkles,
-  Clock
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
@@ -171,6 +172,36 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
       alert('Could not delete selected words. Please try again.');
     } finally {
       setIsDeletingBatch(false);
+    }
+  };
+
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const handleBatchStatusUpdate = async (newStatus: 'mastered' | 'learning' | 'struggling') => {
+    if (selectedWordIds.size === 0) return;
+    setIsUpdatingStatus(true);
+    try {
+      const ids = Array.from(selectedWordIds);
+      const res = await fetch('/api/words', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, memoryStatus: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      setAllWords((prev) =>
+        prev.map((w) => (selectedWordIds.has(w.id) ? { ...w, memoryStatus: newStatus } : w))
+      );
+      setSelectedWordIds(new Set());
+      if (onWordCountChange) onWordCountChange();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      alert('Could not update word status. Please try again.');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -459,14 +490,37 @@ export const VocabularyLibraryView: React.FC<VocabularyLibraryProps> = ({
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowBatchConfirm(true)}
-              className="btn-danger flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Selected ({selectedWordIds.size})</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleBatchStatusUpdate('mastered')}
+                disabled={isUpdatingStatus}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--accent-cypress)] hover:opacity-90 transition cursor-pointer shadow-xs disabled:opacity-50"
+                title="Mark selected words as Mastered (omits them from the flashcard queue until scheduled review)"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Mark as Mastered ({selectedWordIds.size})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleBatchStatusUpdate('learning')}
+                disabled={isUpdatingStatus}
+                className="btn-quiet flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                title="Mark selected words as Learning"
+              >
+                <span>To Learning</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowBatchConfirm(true)}
+                className="btn-danger flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete ({selectedWordIds.size})</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-between px-2 py-0.5 text-xs text-[var(--ink-muted)]">

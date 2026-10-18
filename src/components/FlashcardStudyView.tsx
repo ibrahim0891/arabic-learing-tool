@@ -60,6 +60,18 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
   const [isPracticeMode, setIsPracticeMode] = useState<boolean>(initialMode === 'practice');
   const [practiceDeckLabel, setPracticeDeckLabel] = useState<string>('');
 
+  // Per-session rating guard: ensures each card is rated at most once per session
+  const [sessionRatedWords, setSessionRatedWords] = useState<Record<string, 1 | 2 | 3 | 4>>({});
+  const [showChangeRating, setShowChangeRating] = useState<boolean>(false);
+
+  // Session Size Limits (10, 20, or All cards)
+  const [fullQueueWords, setFullQueueWords] = useState<Word[]>([]);
+  const [sessionLimit, setSessionLimit] = useState<number | 'all'>(20);
+
+  useEffect(() => {
+    setShowChangeRating(false);
+  }, [currentIndex]);
+
   useEffect(() => {
     fetchWords();
   }, [filter]);
@@ -69,6 +81,8 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     setIsCompleted(false);
     setCurrentIndex(0);
     setIsFlipped(false);
+    setSessionRatedWords({});
+    setShowChangeRating(false);
 
     try {
       // Casual Practice Deck configuration stashed by the Word Bank tab
@@ -98,7 +112,13 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
 
       const res = await fetch(`/api/words/queue?${params.toString()}`);
       const data: QueueResponse = await res.json();
-      setWords(data?.words || []);
+      const rawWords = data?.words || [];
+      setFullQueueWords(rawWords);
+
+      // Apply session limit (default 20, or 10, or all)
+      const effectiveLimit = sessionLimit === 'all' ? rawWords.length : sessionLimit;
+      setWords(rawWords.slice(0, effectiveLimit));
+
       if (data?.counts) setCounts(data.counts);
       if (typeof data?.total === 'number') setTotalWords(data.total);
     } catch (err) {
@@ -106,6 +126,25 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSetSessionLimit = (newLimit: number | 'all') => {
+    setSessionLimit(newLimit);
+    const effective = newLimit === 'all' ? fullQueueWords.length : newLimit;
+    const sliced = fullQueueWords.slice(0, effective);
+    setWords(sliced);
+    setCurrentIndex(prev => Math.min(prev, Math.max(0, sliced.length - 1)));
+    setIsFlipped(false);
+  };
+
+  const handleFinishSessionEarly = () => {
+    setIsCompleted(true);
+    confetti({
+      particleCount: 70,
+      spread: 60,
+      origin: { y: 0.6 },
+    });
+    if (onSessionComplete) onSessionComplete();
   };
 
   const handleShuffle = () => {
@@ -157,6 +196,8 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
       return;
     }
 
+    const isAlreadyRated = !!sessionRatedWords[currentWord.id];
+
     try {
       const res = await fetch(`/api/words/${currentWord.id}`, {
         method: 'PUT',
@@ -164,6 +205,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
         body: JSON.stringify({
           rating,
           recordSession: true,
+          isUpdateRating: isAlreadyRated,
         }),
       });
 
@@ -184,9 +226,14 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
           }
           return updated;
         });
+
+        setSessionRatedWords((prev) => ({ ...prev, [currentWord.id]: rating }));
+        setShowChangeRating(false);
       }
 
-      setStudiedCount((prev) => prev + 1);
+      if (!isAlreadyRated) {
+        setStudiedCount((prev) => prev + 1);
+      }
 
       if (currentIndex + 1 < nextDeckLength) {
         setIsFlipped(false);
@@ -371,27 +418,24 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
           >
             <RotateCw className="w-3.5 h-3.5" /> Practice Again
           </button>
-          {isPracticeMode ? (
+          <button
+            onClick={() => {
+              try { sessionStorage.removeItem('fasih_practice_deck'); } catch (_) {}
+              router.push('/library');
+            }}
+            className="btn-quiet px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            Back to Word Bank
+          </button>
+          {!isPracticeMode && filter !== 'all' && (
             <button
               onClick={() => {
-                try { sessionStorage.removeItem('fasih_practice_deck'); } catch (_) {}
-                router.push('/library');
+                setFilter('all');
               }}
               className="btn-ochre px-6 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
             >
-              Back to Word Bank
+              Practice All Words ({totalWords})
             </button>
-          ) : (
-            filter !== 'all' && (
-              <button
-                onClick={() => {
-                  setFilter('all');
-                }}
-                className="btn-ochre px-6 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
-              >
-                Practice All Words ({totalWords})
-              </button>
-            )
           )}
         </div>
       </div>
@@ -497,16 +541,76 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap justify-end">
             {filter === 'smart' && masteredOmittedCount > 0 && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[var(--accent-cypress)]/10 text-[var(--accent-cypress)] border border-[var(--accent-cypress)]/20">
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[var(--accent-cypress)]/10 text-[var(--accent-cypress)] border border-[var(--accent-cypress)]/20">
                 <CheckCircle2 className="w-3 h-3" />
                 {masteredOmittedCount} mastered words omitted
               </span>
             )}
-            <span className="text-xs font-semibold text-[var(--ink-muted)]">
+
+            {/* Session Size Picker */}
+            {fullQueueWords.length > 10 && (
+              <div className="flex items-center gap-1 bg-[var(--bg-surface-elevated)] p-1 rounded-xl border border-[var(--border-subtle)] text-[11px] font-semibold">
+                <span className="text-[10px] uppercase font-bold text-[var(--ink-muted)] px-1.5 hidden sm:inline">Session:</span>
+                <button
+                  type="button"
+                  onClick={() => handleSetSessionLimit(10)}
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                    sessionLimit === 10
+                      ? 'bg-[var(--accent-ochre)] text-white shadow-xs'
+                      : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'
+                  }`}
+                  title="Practice 10 cards"
+                >
+                  10
+                </button>
+                {fullQueueWords.length > 15 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetSessionLimit(20)}
+                    className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                      sessionLimit === 20
+                        ? 'bg-[var(--accent-ochre)] text-white shadow-xs'
+                        : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'
+                    }`}
+                    title="Practice 20 cards"
+                  >
+                    20
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleSetSessionLimit('all')}
+                  className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                    sessionLimit === 'all'
+                      ? 'bg-[var(--accent-ochre)] text-white shadow-xs'
+                      : 'text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'
+                  }`}
+                  title="Practice all cards in queue"
+                >
+                  All ({fullQueueWords.length})
+                </button>
+              </div>
+            )}
+
+            <span className="text-xs font-semibold text-[var(--ink-muted)] whitespace-nowrap">
               Card {currentIndex + 1} of {words.length}
             </span>
+
+            {/* Finish Session Early button */}
+            {studiedCount > 0 && (
+              <button
+                type="button"
+                onClick={handleFinishSessionEarly}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl border border-[var(--accent-cypress)]/30 hover:border-[var(--accent-cypress)] text-[var(--accent-cypress)] bg-[var(--accent-cypress)]/10 text-xs font-semibold transition cursor-pointer"
+                title="Wrap up and see results for cards reviewed so far"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Finish ({studiedCount})</span>
+              </button>
+            )}
+
             <button
               onClick={handleShuffle}
               className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre-dim)] transition cursor-pointer flex items-center gap-1.5"
@@ -748,53 +852,125 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
               )}
             </div>
           ) : isFlipped ? (
-            <div className="space-y-2.5 animate-fadeIn w-full">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                {/* Forgot */}
-                <button
-                  onClick={() => handleCardRating(1)}
-                  disabled={isSubmitting}
-                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="block text-base sm:text-lg font-bold">Again</span>
-                  <span className="text-xs opacity-80 mt-0.5 block">Forgot it (1)</span>
-                  <span className="text-[10px] opacity-70 mt-1 block font-mono">1d • Re-queues</span>
-                </button>
+            sessionRatedWords[currentWord.id] && !showChangeRating ? (
+              <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 w-full animate-fadeIn">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-xs font-semibold text-[var(--ink-secondary)]">
+                    Already rated in this session:
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
+                    sessionRatedWords[currentWord.id] === 1 ? 'bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] border border-[var(--accent-terracotta)]/30' :
+                    sessionRatedWords[currentWord.id] === 2 ? 'bg-[var(--accent-ochre-dim)] text-[var(--accent-ochre)] border border-[var(--accent-ochre)]/30' :
+                    sessionRatedWords[currentWord.id] === 3 ? 'bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] border border-[var(--accent-cypress)]/30' :
+                    'bg-[var(--accent-ochre)] text-white shadow-xs'
+                  }`}>
+                    {sessionRatedWords[currentWord.id] === 1 ? 'Again (Forgot)' :
+                     sessionRatedWords[currentWord.id] === 2 ? 'Hard (Partly knew)' :
+                     sessionRatedWords[currentWord.id] === 3 ? 'Good (Remembered)' :
+                     'Easy (Knew well)'}
+                  </span>
+                  <span className="text-[11px] text-[var(--ink-muted)] hidden md:inline">
+                    • Metrics protected from double-counting
+                  </span>
+                </div>
 
-                {/* Hard */}
-                <button
-                  onClick={() => handleCardRating(2)}
-                  disabled={isSubmitting}
-                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="block text-base sm:text-lg font-bold">Hard</span>
-                  <span className="text-xs opacity-80 mt-0.5 block">Partly knew (2)</span>
-                  <span className="text-[10px] opacity-70 mt-1 block font-mono">1–2 days</span>
-                </button>
-
-                {/* Good */}
-                <button
-                  onClick={() => handleCardRating(3)}
-                  disabled={isSubmitting}
-                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="block text-base sm:text-lg font-bold">Good</span>
-                  <span className="text-xs opacity-80 mt-0.5 block">Remembered (3)</span>
-                  <span className="text-[10px] opacity-70 mt-1 block font-mono">4–10 days</span>
-                </button>
-
-                {/* Easy */}
-                <button
-                  onClick={() => handleCardRating(4)}
-                  disabled={isSubmitting}
-                  className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)]/10 text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="block text-base sm:text-lg font-bold">Easy</span>
-                  <span className="text-xs opacity-80 mt-0.5 block">Knew well (4)</span>
-                  <span className="text-[10px] opacity-70 mt-1 block font-mono">7–25+ days</span>
-                </button>
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangeRating(true)}
+                    className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)] underline cursor-pointer px-2 py-1"
+                  >
+                    Change rating
+                  </button>
+                  {currentIndex + 1 < words.length ? (
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setCurrentIndex(prev => prev + 1);
+                        setIsFlipped(false);
+                      }}
+                      variant="primary"
+                      size="sm"
+                      className="px-5 py-2 font-bold flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>Next Card</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => setIsCompleted(true)}
+                      variant="primary"
+                      size="sm"
+                      className="px-5 py-2 font-bold flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Finish</span>
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2.5 animate-fadeIn w-full">
+                {showChangeRating && (
+                  <div className="flex items-center justify-between text-xs text-[var(--ink-muted)] px-1">
+                    <span>Updating rating (replaces current rating without double-counting):</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowChangeRating(false)}
+                      className="text-[var(--accent-ochre)] hover:underline cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                  {/* Forgot */}
+                  <button
+                    onClick={() => handleCardRating(1)}
+                    disabled={isSubmitting}
+                    className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-terracotta)]/40 hover:bg-[var(--accent-terracotta)]/15 text-[var(--accent-terracotta)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="block text-base sm:text-lg font-bold">Again</span>
+                    <span className="text-xs opacity-80 mt-0.5 block">Forgot it (1)</span>
+                    <span className="text-[10px] opacity-70 mt-1 block font-mono">1d • Re-queues</span>
+                  </button>
+
+                  {/* Hard */}
+                  <button
+                    onClick={() => handleCardRating(2)}
+                    disabled={isSubmitting}
+                    className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-ochre)]/40 hover:bg-[var(--accent-ochre)]/15 text-[var(--accent-ochre)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="block text-base sm:text-lg font-bold">Hard</span>
+                    <span className="text-xs opacity-80 mt-0.5 block">Partly knew (2)</span>
+                    <span className="text-[10px] opacity-70 mt-1 block font-mono">1–2 days</span>
+                  </button>
+
+                  {/* Good */}
+                  <button
+                    onClick={() => handleCardRating(3)}
+                    disabled={isSubmitting}
+                    className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--accent-cypress)]/40 hover:bg-[var(--accent-cypress)]/15 text-[var(--accent-cypress)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="block text-base sm:text-lg font-bold">Good</span>
+                    <span className="text-xs opacity-80 mt-0.5 block">Remembered (3)</span>
+                    <span className="text-[10px] opacity-70 mt-1 block font-mono">4–10 days</span>
+                  </button>
+
+                  {/* Easy */}
+                  <button
+                    onClick={() => handleCardRating(4)}
+                    disabled={isSubmitting}
+                    className="p-3.5 sm:p-4 rounded-xl border-2 border-[var(--border-strong)] hover:border-[var(--accent-ochre)] hover:bg-[var(--accent-ochre)]/10 text-[var(--ink-primary)] text-center cursor-pointer transition transform hover:-translate-y-0.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="block text-base sm:text-lg font-bold">Easy</span>
+                    <span className="text-xs opacity-80 mt-0.5 block">Knew well (4)</span>
+                    <span className="text-[10px] opacity-70 mt-1 block font-mono">7–25+ days</span>
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <div className="flex justify-between items-center w-full text-sm pt-1">
               <button
@@ -902,8 +1078,12 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 truncate min-w-0">
-                      <span className="w-5 text-center font-mono text-[10px] text-[var(--ink-muted)] shrink-0">
-                        {idx + 1}
+                      <span className="w-5 text-center font-mono text-[10px] shrink-0">
+                        {sessionRatedWords[w.id] ? (
+                          <span className="text-[var(--accent-cypress)] font-bold">✓</span>
+                        ) : (
+                          <span className="text-[var(--ink-muted)]">{idx + 1}</span>
+                        )}
                       </span>
                       <span dir="rtl" className="font-arabic text-base text-[var(--ink-primary)] harakat-text font-semibold truncate">
                         {w.arabic}
