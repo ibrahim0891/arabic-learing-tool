@@ -22,7 +22,7 @@ import {
 import { Word } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { Button } from './ui/Button';
-import { sortWordsBySmartPriority } from '@/lib/srs';
+import { DeckCounts } from '@/lib/srs';
 import confetti from 'canvas-confetti';
 
 interface FlashcardStudyProps {
@@ -32,6 +32,12 @@ interface FlashcardStudyProps {
   onSessionComplete?: () => void;
 }
 
+interface QueueResponse {
+  words: Word[];
+  counts: DeckCounts;
+  total: number;
+}
+
 export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
   initialFilter = 'smart',
   initialMode,
@@ -39,8 +45,9 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
   onSessionComplete,
 }) => {
   const router = useRouter();
-  const [allWords, setAllWords] = useState<Word[]>([]);
   const [words, setWords] = useState<Word[]>([]);
+  const [counts, setCounts] = useState<DeckCounts | null>(null);
+  const [totalWords, setTotalWords] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -64,73 +71,36 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     setIsFlipped(false);
 
     try {
-      const res = await fetch('/api/words');
-      const data: Word[] = await res.json();
-      const wordList = data || [];
-      setAllWords(wordList);
-      const now = Date.now();
-
-      // Check for Casual Practice Deck loaded from Word Bank tab
+      // Casual Practice Deck configuration stashed by the Word Bank tab
       let practicePayload: { ids?: string[]; tab?: string; label?: string; practiceOnly?: boolean } | null = null;
       try {
         const stored = sessionStorage.getItem('fasih_practice_deck');
-        if (stored) {
-          practicePayload = JSON.parse(stored);
-        }
+        if (stored) practicePayload = JSON.parse(stored);
       } catch (_) {}
 
+      const params = new URLSearchParams();
       if (initialMode === 'practice' || practicePayload?.practiceOnly) {
         setIsPracticeMode(true);
-        if (practicePayload?.label) {
-          setPracticeDeckLabel(practicePayload.label);
-        } else if (initialStatus) {
-          setPracticeDeckLabel(`${initialStatus.toUpperCase()} Deck`);
+        params.set('practice', 'true');
+        if (practicePayload?.ids?.length) {
+          params.set('ids', practicePayload.ids.join(','));
         }
-
-        let customQueue: Word[] = [];
-        if (practicePayload?.ids && practicePayload.ids.length > 0) {
-          const idSet = new Set(practicePayload.ids);
-          customQueue = wordList.filter((w) => idSet.has(w.id));
-        } else if (initialStatus) {
-          customQueue = initialStatus === 'all'
-            ? wordList
-            : wordList.filter((w) => w.memoryStatus === initialStatus);
+        const statusTab = practicePayload?.tab || initialStatus;
+        if (statusTab) {
+          params.set('status', statusTab);
+          setPracticeDeckLabel(
+            practicePayload?.label || `${initialStatus ? initialStatus.toUpperCase() : statusTab.toUpperCase()} Deck`
+          );
         }
-
-        if (customQueue.length > 0) {
-          setWords(customQueue);
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (filter === 'smart') {
-        // Smart queue: omit mastered words that are NOT yet due.
-        // They will automatically reappear when their SRS review schedule arrives.
-        const active = wordList.filter(w => {
-          if (w.memoryStatus === 'mastered') {
-            return w.nextReviewDate && new Date(w.nextReviewDate).getTime() <= now;
-          }
-          return true;
-        });
-        setWords(sortWordsBySmartPriority(active));
-      } else if (filter === 'focus') {
-        // Focus mode: only struggling + learning + new (never mastered, even if due)
-        const focusWords = wordList.filter(w => w.memoryStatus !== 'mastered');
-        setWords(sortWordsBySmartPriority(focusWords));
-      } else if (filter === 'revision') {
-        const dueWords = wordList.filter(w => w.nextReviewDate && new Date(w.nextReviewDate).getTime() <= now);
-        setWords(sortWordsBySmartPriority(dueWords));
-      } else if (filter === 'struggling') {
-        const tricky = wordList.filter(w => w.memoryStatus === 'struggling');
-        setWords(sortWordsBySmartPriority(tricky));
-      } else if (filter === 'learning') {
-        const learning = wordList.filter(w => w.memoryStatus === 'learning');
-        setWords(sortWordsBySmartPriority(learning));
       } else {
-        // 'all': all words in the word bank including all mastered words
-        setWords(wordList);
+        params.set('deck', filter);
       }
+
+      const res = await fetch(`/api/words/queue?${params.toString()}`);
+      const data: QueueResponse = await res.json();
+      setWords(data?.words || []);
+      if (data?.counts) setCounts(data.counts);
+      if (typeof data?.total === 'number') setTotalWords(data.total);
     } catch (err) {
       console.error(err);
     } finally {
@@ -319,17 +289,11 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFlipped, currentIndex, words, isPracticeMode]);
 
-  const now = Date.now();
   const currentWord = words[currentIndex];
-  const smartWordsCount = allWords.filter(w => {
-    if (w.memoryStatus === 'mastered') {
-      return w.nextReviewDate && new Date(w.nextReviewDate).getTime() <= now;
-    }
-    return true;
-  }).length;
-  const dueWordsCount = allWords.filter(w => w.nextReviewDate && new Date(w.nextReviewDate).getTime() <= now).length;
-  const strugglingWordsCount = allWords.filter(w => w.memoryStatus === 'struggling').length;
-  const masteredOmittedCount = allWords.filter(w => w.memoryStatus === 'mastered' && (!w.nextReviewDate || new Date(w.nextReviewDate).getTime() > now)).length;
+  const smartWordsCount = counts?.smart ?? 0;
+  const dueWordsCount = counts?.due ?? 0;
+  const strugglingWordsCount = counts?.struggling ?? 0;
+  const masteredOmittedCount = counts?.masteredOmitted ?? 0;
 
   const masteredCount = words.filter((w) => w.memoryStatus === 'mastered').length;
   const learningCount = words.filter((w) => w.memoryStatus === 'learning').length;
@@ -373,7 +337,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
           onClick={() => setFilter('all')}
           className="btn-quiet px-6 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
         >
-          {filter === 'smart' || filter === 'revision' || filter === 'struggling' ? `Practice All Words (${allWords.length}) Anyway` : 'Reload'}
+          {filter === 'smart' || filter === 'revision' || filter === 'struggling' ? `Practice All Words (${totalWords}) Anyway` : 'Reload'}
         </button>
       </div>
     );
@@ -425,7 +389,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
                 }}
                 className="btn-ochre px-6 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
               >
-                Practice All Words ({allWords.length})
+                Practice All Words ({totalWords})
               </button>
             )
           )}
@@ -529,7 +493,7 @@ export const FlashcardStudyView: React.FC<FlashcardStudyProps> = ({
               }`}
               title="Practice all words in your bank including mastered"
             >
-              <span>All Words ({allWords.length})</span>
+              <span>All Words ({totalWords})</span>
             </button>
           </div>
 

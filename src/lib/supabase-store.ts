@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import db from './db';
 import { Word, WordSet, DashboardStats, StudySessionLog, DraftWord, DailySentence, ConversationSession, ChatMessage, RootFamilyWord } from './types';
+import { checkWordDuplicate, WordIdentifier } from './duplicate-checker';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xqzkgespanhdzbudaeoz.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_aYl97LnIVJoQWLRslNWlWg_63YGRjK5';
@@ -341,6 +342,101 @@ export const dataStore = {
     return rawRows.map(mapSupabaseWordToModel);
   },
 
+  // Fetch a single word by id without scanning the whole table.
+  // Uses the aux-table merges (examples / root family / linguistic forms)
+  // restricted to the requested word so the result matches getWords().
+  async getWord(id: string): Promise<Word | null> {
+    if (!id) return null;
+
+    // 1. Try Supabase
+    try {
+      const { data, error } = await supabase.from('words').select('*').eq('id', id).maybeSingle();
+      if (!error && data) {
+        const word = mapSupabaseWordToModel(data);
+        this.hydrateWordFromLocal(id, word);
+        return word;
+      }
+    } catch (_) {}
+
+    // 2. Try SQLite
+    try {
+      const row = db.prepare('SELECT * FROM words WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+      if (row) {
+        const word = mapSupabaseWordToModel(row);
+        this.hydrateWordFromLocal(id, word);
+        return word;
+      }
+    } catch (_) {}
+
+    // 3. Last resort: full-scan+merge path via getWords()
+    const all = await this.getWords();
+    const found = all.find(w => w.id === id);
+    return found || null;
+  },
+
+  // Fill optional rich fields (additional examples / root family / linguistic
+  // forms) for a single word from the local SQLite aux tables. Only word_id
+  // lookups here — no full-table scans.
+  hydrateWordFromLocal(wordId: string, word: Word): void {
+    try {
+      if (!word.additionalExamples || word.additionalExamples.length === 0) {
+        const exRow = db.prepare('SELECT examples FROM word_additional_examples WHERE word_id = ?').get(wordId) as { examples?: string | null } | undefined;
+        if (exRow?.examples) {
+          try {
+            const parsed = JSON.parse(exRow.examples);
+            if (Array.isArray(parsed) && parsed.length > 0) word.additionalExamples = parsed;
+          } catch (_) {}
+        }
+      }
+      if (!word.rootFamily || word.rootFamily.length === 0) {
+        const faRow = db.prepare('SELECT family FROM word_root_families WHERE word_id = ?').get(wordId) as { family?: string | null } | undefined;
+        if (faRow?.family) {
+          try {
+            const parsed = JSON.parse(faRow.family);
+            if (Array.isArray(parsed) && parsed.length > 0) word.rootFamily = parsed;
+          } catch (_) {}
+        }
+      }
+      const formRow = db.prepare('SELECT * FROM word_linguistic_forms WHERE word_id = ?').get(wordId) as {
+        plural_arabic?: string | null;
+        plural_transliteration?: string | null;
+        plural_english?: string | null;
+        opposite_arabic?: string | null;
+        opposite_transliteration?: string | null;
+        opposite_english?: string | null;
+      } | undefined;
+      if (formRow) {
+        if (!word.pluralArabic && formRow.plural_arabic) {
+          word.pluralArabic = formRow.plural_arabic;
+          word.pluralTransliteration = formRow.plural_transliteration || undefined;
+          word.pluralEnglish = formRow.plural_english || undefined;
+        }
+        if (!word.oppositeArabic && formRow.opposite_arabic) {
+          word.oppositeArabic = formRow.opposite_arabic;
+          word.oppositeTransliteration = formRow.opposite_transliteration || undefined;
+          word.oppositeEnglish = formRow.opposite_english || undefined;
+        }
+      }
+    } catch (_) {}
+  },
+
+  // Lightweight duplicate check: fetch ONLY the arabic column and compare with
+  // harakat-stripped equality in JS, instead of loading every full word row.
+  // Returns all stored arabic forms (still cheap — one column, no blob JSON).
+  async listArabicForms(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase.from('words').select('arabic');
+      if (!error && data) {
+        return data.map((row: { arabic?: string | null }) => row.arabic as string).filter(Boolean);
+      }
+    } catch (_) {}
+    try {
+      const rows = db.prepare('SELECT DISTINCT arabic FROM words').all() as { arabic: string }[];
+      return rows.map(r => r.arabic).filter(Boolean);
+    } catch (_) {}
+    return [];
+  },
+
   // Save single word
   async insertWord(word: Partial<Word>): Promise<Word> {
     const supabasePayload = mapWordModelToSupabase(word);
@@ -356,7 +452,7 @@ export const dataStore = {
               setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
               easeFactor, intervalDays, repetitionCount, nextReviewDate,
               pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             word.id, word.arabic, word.transliteration || '', word.english, word.wordType || 'noun',
             word.presentTenseI || null, word.presentTenseHe || null, word.root || null,
@@ -382,7 +478,7 @@ export const dataStore = {
         setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
         easeFactor, intervalDays, repetitionCount, nextReviewDate,
         pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       word.id, word.arabic, word.transliteration || '', word.english, word.wordType || 'noun',
       word.presentTenseI || null, word.presentTenseHe || null, word.root || null,
@@ -686,17 +782,84 @@ export const dataStore = {
   },
 
   // Get aggregated dashboard statistics
+  // Uses targeted aggregation queries (counts by status, due counts) instead of
+  // loading every word row — the words table carries large JSON blob columns.
   async getDashboardStats(): Promise<DashboardStats> {
-    const allWords = await this.getWords();
     const nowIso = new Date().toISOString();
     const todayStr = nowIso.split('T')[0];
 
-    const totalWords = allWords.length;
-    const totalLearned = allWords.filter(w => w.memoryStatus !== 'new').length;
-    const currentlyStudying = allWords.filter(w => w.memoryStatus === 'learning').length;
-    const struggling = allWords.filter(w => w.memoryStatus === 'struggling').length;
-    const mastered = allWords.filter(w => w.memoryStatus === 'mastered').length;
-    const readyForRevision = allWords.filter(w => w.memoryStatus !== 'new' && w.nextReviewDate <= nowIso).length;
+    let totalWords = 0;
+    let newWords = 0;
+    let currentlyStudying = 0;
+    let struggling = 0;
+    let mastered = 0;
+    let readyForRevision = 0;
+    let statsResolved = false;
+
+    // Head-count-only Supabase queries return no rows, just the count.
+    type HeadCountQuery = ReturnType<ReturnType<typeof supabase.from>['select']>;
+    const headCount = async (query: HeadCountQuery): Promise<number> => {
+      const { count, error } = await query;
+      if (error) throw new Error(error.message);
+      return count || 0;
+    };
+
+    // 1. Try Supabase: aggregate with head-only count requests (no row data).
+    // Any error (unreachable, missing table) throws and falls through to SQLite.
+    try {
+      const selectHead = () => supabase.from('words').select('*', { count: 'exact', head: true });
+
+      const [total, isNew, isLearning, isStruggling, isMastered, isDue] = await Promise.all([
+        headCount(selectHead()),
+        headCount(selectHead().eq('memory_status', 'new')),
+        headCount(selectHead().eq('memory_status', 'learning')),
+        headCount(selectHead().eq('memory_status', 'struggling')),
+        headCount(selectHead().eq('memory_status', 'mastered')),
+        headCount(selectHead().neq('memory_status', 'new').lte('next_review_date', nowIso)),
+      ]);
+
+      totalWords = total;
+      newWords = isNew;
+      currentlyStudying = isLearning;
+      struggling = isStruggling;
+      mastered = isMastered;
+      readyForRevision = isDue;
+      statsResolved = true;
+    } catch (_) {}
+
+    // 2. SQLite aggregation fallback
+    if (!statsResolved) {
+      try {
+        const rows = db.prepare(`
+          SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN memoryStatus = 'new' THEN 1 ELSE 0 END) AS newCount,
+            SUM(CASE WHEN memoryStatus = 'learning' THEN 1 ELSE 0 END) AS learningCount,
+            SUM(CASE WHEN memoryStatus = 'struggling' THEN 1 ELSE 0 END) AS strugglingCount,
+            SUM(CASE WHEN memoryStatus = 'mastered' THEN 1 ELSE 0 END) AS masteredCount,
+            SUM(CASE WHEN memoryStatus != 'new' AND nextReviewDate <= ? THEN 1 ELSE 0 END) AS dueCount
+          FROM words
+        `).get(nowIso) as {
+          total: number | null;
+          newCount: number | null;
+          learningCount: number | null;
+          strugglingCount: number | null;
+          masteredCount: number | null;
+          dueCount: number | null;
+        } | undefined;
+        if (rows) {
+          totalWords = Number(rows.total || 0);
+          newWords = Number(rows.newCount || 0);
+          currentlyStudying = Number(rows.learningCount || 0);
+          struggling = Number(rows.strugglingCount || 0);
+          mastered = Number(rows.masteredCount || 0);
+          readyForRevision = Number(rows.dueCount || 0);
+          statsResolved = true;
+        }
+      } catch (_) {}
+    }
+
+    const totalLearned = totalWords - newWords;
 
     let recentSessions: StudySessionLog[] = [];
     let todayStudiedCount = 0;
@@ -758,26 +921,26 @@ export const dataStore = {
     }
   },
 
-  // Save new unique draft words (ignores words already in draft or already in library)
+  // Save new unique draft words (ignores words already in draft or already in library, checking both Arabic and English meaning)
   async saveDraftWords(words: Partial<DraftWord>[]): Promise<{ addedCount: number }> {
     const existingDrafts = await this.getDraftWords();
     const existingWords = await this.getWords();
 
-    const knownArabic = new Set<string>([
-      ...existingDrafts.map(d => d.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim()),
-      ...existingWords.map(w => w.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim()),
-    ]);
+    const knownList: WordIdentifier[] = [
+      ...existingDrafts.map(d => ({ id: d.id, arabic: d.arabic, english: d.english, transliteration: d.transliteration })),
+      ...existingWords.map(w => ({ id: w.id, arabic: w.arabic, english: w.english, transliteration: w.transliteration })),
+    ];
 
     const newDrafts: DraftWord[] = [];
     const nowIso = new Date().toISOString();
 
     for (const w of words) {
       if (!w.arabic) continue;
-      const stripped = w.arabic.replace(/[\u064B-\u065F\u0670]/g, '').trim();
-      if (knownArabic.has(stripped)) {
-        continue; // Skip duplicates automatically
+      const dup = checkWordDuplicate({ arabic: w.arabic, english: w.english || '' }, knownList);
+      if (dup.isDuplicate) {
+        continue; // Skip duplicates automatically (both Arabic spelling and English meaning)
       }
-      knownArabic.add(stripped);
+      knownList.push({ arabic: w.arabic, english: w.english || '', transliteration: w.transliteration });
 
       const draftItem: DraftWord = {
         id: w.id || `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,

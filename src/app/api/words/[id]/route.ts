@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataStore } from '@/lib/supabase-store';
 import { calculateNextReview } from '@/lib/srs';
+import { checkWordDuplicate } from '@/lib/duplicate-checker';
 
 // GET /api/words/[id]
 export async function GET(
@@ -9,8 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const all = await dataStore.getWords();
-    const word = all.find(w => w.id === id);
+    const word = await dataStore.getWord(id);
     if (!word) {
       return NextResponse.json({ error: 'Word not found' }, { status: 404 });
     }
@@ -30,8 +30,7 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
 
-    const all = await dataStore.getWords();
-    const existingWord = all.find(w => w.id === id);
+    const existingWord = await dataStore.getWord(id);
     if (!existingWord) {
       return NextResponse.json({ error: 'Word not found' }, { status: 404 });
     }
@@ -65,7 +64,22 @@ export async function PUT(
       return NextResponse.json(updated);
     }
 
-    // Manual word editing
+    // Manual word editing: verify no duplicate Arabic or English concept in other words
+    if (body.arabic && body.english) {
+      const existingWords = await dataStore.getWords();
+      const duplicate = checkWordDuplicate(
+        { arabic: body.arabic, english: body.english },
+        existingWords.map(w => ({ id: w.id, arabic: w.arabic, english: w.english, transliteration: w.transliteration })),
+        id
+      );
+      if (duplicate.isDuplicate) {
+        return NextResponse.json(
+          { error: duplicate.detail || 'Another word with this spelling or meaning already exists.' },
+          { status: 409 }
+        );
+      }
+    }
+
     const updated = await dataStore.updateWord(id, body);
     return NextResponse.json(updated);
   } catch (error) {

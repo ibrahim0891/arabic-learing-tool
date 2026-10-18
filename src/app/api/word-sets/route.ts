@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateVocabularySet } from '@/lib/ai-generator';
 import { dataStore } from '@/lib/supabase-store';
-import { WordSet } from '@/lib/types';
+import { Word, WordSet } from '@/lib/types';
 import { stripHarakat } from '@/lib/srs';
+import { checkWordDuplicate, WordIdentifier } from '@/lib/duplicate-checker';
 
 // GET /api/word-sets - List saved word sets
 export async function GET() {
@@ -32,7 +33,11 @@ export async function POST(req: NextRequest) {
       } = body;
 
       const existingWords = await dataStore.getWords();
-      const existingArabic = existingWords.map(w => w.arabic);
+      const existingDrafts = await dataStore.getDraftWords();
+      const allKnown: WordIdentifier[] = [
+        ...existingWords.map(w => ({ id: w.id, arabic: w.arabic, english: w.english, transliteration: w.transliteration })),
+        ...existingDrafts.map(d => ({ id: d.id, arabic: d.arabic, english: d.english, transliteration: d.transliteration })),
+      ];
 
       let revisionWords: any[] = [];
       if (includeRevision) {
@@ -46,7 +51,8 @@ export async function POST(req: NextRequest) {
         topic,
         difficulty,
         wordType,
-        excludeWords: existingArabic,
+        excludeWords: existingWords.map(w => w.arabic),
+        knownWords: allKnown,
         revisionWords,
       });
 
@@ -82,11 +88,42 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'No words provided to save' }, { status: 400 });
       }
 
+      // Validate each word has the required fields before touching the database.
+      for (const [idx, w] of words.entries()) {
+        if (!w || typeof w.arabic !== 'string' || !w.arabic.trim()) {
+          return NextResponse.json(
+            { error: `Word at position ${idx} is missing its Arabic spelling.` },
+            { status: 400 },
+          );
+        }
+        if (!w.english || !w.english.trim()) {
+          return NextResponse.json(
+            { error: `Word "${w.arabic.trim()}" is missing its English translation.` },
+            { status: 400 },
+          );
+        }
+      }
+
       const setId = `set_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const nowIso = new Date().toISOString();
 
-      const existingWords = await dataStore.getWords();
-      const existingSet = new Set(existingWords.map(w => stripHarakat(w.arabic)));
+      let existingWords: Word[];
+      try {
+        existingWords = await dataStore.getWords();
+      } catch (err) {
+        console.error('Error loading existing words for duplicate check:', err);
+        return NextResponse.json(
+          { error: 'Unable to check for duplicate words. Please try again.' },
+          { status: 500 },
+        );
+      }
+
+      const runningKnownList: WordIdentifier[] = existingWords.map(w => ({
+        id: w.id,
+        arabic: w.arabic,
+        english: w.english,
+        transliteration: w.transliteration,
+      }));
 
       const setRecord: WordSet = {
         id: setId,
@@ -101,11 +138,11 @@ export async function POST(req: NextRequest) {
       const wordsToInsert = [];
 
       for (const w of words) {
-        const stripped = stripHarakat(w.arabic);
-        if (existingSet.has(stripped)) {
-          continue; // Skip duplicate word
+        const dup = checkWordDuplicate({ arabic: w.arabic, english: w.english }, runningKnownList);
+        if (dup.isDuplicate) {
+          continue; // Skip duplicate word (matches Arabic spelling or English meaning)
         }
-        existingSet.add(stripped);
+        runningKnownList.push({ arabic: w.arabic, english: w.english, transliteration: w.transliteration });
 
         const wordId = `word_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
         wordsToInsert.push({
@@ -144,7 +181,15 @@ export async function POST(req: NextRequest) {
       }
 
       setRecord.wordsCount = wordsToInsert.length;
-      await dataStore.saveWordSet(setRecord, wordsToInsert);
+      try {
+        await dataStore.saveWordSet(setRecord, wordsToInsert);
+      } catch (err) {
+        console.error('Error persisting word set:', err);
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : 'Failed to save the word set.' },
+          { status: 500 },
+        );
+      }
 
       return NextResponse.json({
         success: true,
@@ -157,6 +202,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Error handling word set request:', error);
-    return NextResponse.json({ error: 'Failed to process word set' }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : 'Failed to process word set',
+      },
+      { status: 500 },
+    );
   }
 }

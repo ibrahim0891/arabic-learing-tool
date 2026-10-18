@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dataStore } from '@/lib/supabase-store';
 import { stripHarakat } from '@/lib/srs';
 import { Word, WordSet } from '@/lib/types';
+import { checkWordDuplicate, WordIdentifier } from '@/lib/duplicate-checker';
 
 // GET /api/drafts - Fetch all draft words
 export async function GET() {
@@ -40,7 +41,12 @@ export async function POST(req: NextRequest) {
       }
 
       const existingWords = await dataStore.getWords();
-      const existingSet = new Set(existingWords.map(w => stripHarakat(w.arabic)));
+      const runningKnownList: WordIdentifier[] = existingWords.map(w => ({
+        id: w.id,
+        arabic: w.arabic,
+        english: w.english,
+        transliteration: w.transliteration,
+      }));
 
       const setId = `set_draft_${Date.now()}`;
       const nowIso = new Date().toISOString();
@@ -49,9 +55,9 @@ export async function POST(req: NextRequest) {
       const deletedDraftIds: string[] = [];
 
       for (const d of selectedDrafts) {
-        const stripped = stripHarakat(d.arabic);
-        if (!existingSet.has(stripped)) {
-          existingSet.add(stripped);
+        const dup = checkWordDuplicate({ arabic: d.arabic, english: d.english }, runningKnownList);
+        if (!dup.isDuplicate) {
+          runningKnownList.push({ arabic: d.arabic, english: d.english, transliteration: d.transliteration });
           wordsToInsert.push({
             id: `word_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             arabic: d.arabic,

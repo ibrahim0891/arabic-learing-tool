@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { Word } from './types';
+import { checkWordDuplicate, WordIdentifier } from './duplicate-checker';
 
 export interface GenerateWordsOptions {
   count: number;
@@ -7,6 +8,7 @@ export interface GenerateWordsOptions {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   wordType: string;
   excludeWords?: string[]; // Arabic words already known/learned to prevent duplicates
+  knownWords?: WordIdentifier[]; // Full Arabic + English pairs to prevent semantic duplicates (e.g. hasub vs hasib)
   revisionWords?: Word[]; // Words to reuse and weave into new context sentences
 }
 
@@ -318,9 +320,15 @@ export async function generateVocabularySet(options: GenerateWordsOptions): Prom
     const key = (options.topic || 'daily life').toLowerCase();
     const fallback = curatedSeedTopics[key] || curatedSeedTopics['daily life'];
     
-    // Filter out words that might already be in excludeWords
-    const excludedSet = new Set((options.excludeWords || []).map(w => w.trim()));
-    const filteredWords = fallback.words.filter(w => !excludedSet.has(w.arabic));
+    // Filter out words that might already be known (by Arabic or English meaning)
+    const knownList: WordIdentifier[] = options.knownWords && options.knownWords.length > 0
+      ? options.knownWords
+      : (options.excludeWords || []).map(a => ({ arabic: a, english: '' }));
+
+    const filteredWords = fallback.words.filter(w => {
+      const dup = checkWordDuplicate({ arabic: w.arabic, english: w.english }, knownList);
+      return !dup.isDuplicate;
+    });
     
     const count = Math.min(options.count || 10, filteredWords.length > 0 ? filteredWords.length : fallback.words.length);
     const chosenWords = (filteredWords.length >= count ? filteredWords : fallback.words).slice(0, count);
@@ -339,8 +347,29 @@ export async function generateVocabularySet(options: GenerateWordsOptions): Prom
   // Use Gemini 2.5 Flash via @google/genai
   const ai = new GoogleGenAI({ apiKey });
 
-  const excludeSection = options.excludeWords && options.excludeWords.length > 0
-    ? `IMPORTANT: The student ALREADY knows these words. DO NOT generate these words again as new entries:\n${options.excludeWords.slice(0, 50).join(', ')}`
+  const knownList: WordIdentifier[] = options.knownWords && options.knownWords.length > 0
+    ? options.knownWords
+    : (options.excludeWords || []).map(a => ({ arabic: a, english: '' }));
+
+  const excludeConcepts: string[] = [];
+  for (const kw of knownList.slice(0, 45)) {
+    if (kw.arabic && kw.english) {
+      excludeConcepts.push(`- ${kw.arabic} (${kw.english})`);
+    } else if (kw.arabic) {
+      excludeConcepts.push(`- ${kw.arabic}`);
+    }
+  }
+
+  const excludeSection = excludeConcepts.length > 0
+    ? `CRITICAL DUPLICATE & SYNONYM PREVENTION:
+The student ALREADY knows and has saved these vocabulary concepts:
+${excludeConcepts.join('\n')}
+
+MANDATORY RULES:
+1. DO NOT generate any of the words listed above.
+2. DO NOT generate alternative Arabic synonyms that share the same English meaning as existing words!
+   (For example: if the student already has "حَاسُوب" for "computer", DO NOT generate "حَاسِب" for "computer". If they already have "هَاتِف" for "phone", DO NOT generate "جَوَّال" for "phone").
+3. Every single generated word MUST represent a FRESH, DISTINCT English meaning/concept that the student has not yet encountered.`
     : '';
 
   const revisionSection = options.revisionWords && options.revisionWords.length > 0
@@ -416,18 +445,28 @@ Respond ONLY with a valid JSON object matching this exact schema:
     const responseText = response.text || '';
     const parsed = JSON.parse(cleanJsonOutput(responseText)) as GeneratedWordSetResult;
 
-    // Attach chosen topic and difficulty to each word
-    const cleanedWords = (parsed.words || []).map(w => ({
-      ...w,
-      topic: options.topic,
-      difficulty: options.difficulty,
-      wordType: w.wordType || 'noun',
-    }));
+    // Deduplicate against existing words and within this batch (checking both Arabic spelling and English meaning)
+    const runningList: WordIdentifier[] = [...knownList];
+    const uniqueCleanedWords = [];
+
+    for (const w of parsed.words || []) {
+      if (!w.arabic || !w.english) continue;
+      const dup = checkWordDuplicate({ arabic: w.arabic, english: w.english }, runningList);
+      if (!dup.isDuplicate) {
+        runningList.push({ arabic: w.arabic, english: w.english, transliteration: w.transliteration });
+        uniqueCleanedWords.push({
+          ...w,
+          topic: options.topic,
+          difficulty: options.difficulty,
+          wordType: w.wordType || 'noun',
+        });
+      }
+    }
 
     return {
       title: parsed.title || `${options.topic} Word Set`,
       themeContext: parsed.themeContext || `Vocabulary set for ${options.topic}`,
-      words: cleanedWords,
+      words: uniqueCleanedWords,
     };
   } catch (error) {
     console.error('Error in Gemini vocabulary generation:', error);

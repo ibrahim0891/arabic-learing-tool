@@ -157,6 +157,84 @@ export function sortWordsBySmartPriority(words: Word[]): Word[] {
   });
 }
 
+/** The named study decks a queue can be composed from. */
+export type DeckName = 'smart' | 'focus' | 'revision' | 'struggling' | 'learning' | 'all';
+
+/** A word whose scheduled review time has arrived. */
+export function isDue(word: Word, now: number = Date.now()): boolean {
+  return !!word.nextReviewDate && new Date(word.nextReviewDate).getTime() <= now;
+}
+
+/**
+ * Compose a study deck from the full word bank.
+ *
+ * Pure and shared by the `/api/words/queue` endpoint and any client that needs
+ * the same deck rules, so filtering logic never diverges between the two.
+ */
+export function composeDeck(words: Word[], deck: DeckName = 'smart', now: number = Date.now()): Word[] {
+  switch (deck) {
+    case 'smart':
+      // Smart queue: omit mastered words that are NOT yet due.
+      // They automatically reappear when their SRS review schedule arrives.
+      return sortWordsBySmartPriority(words.filter(w => w.memoryStatus !== 'mastered' || isDue(w, now)));
+    case 'focus':
+      // Focus mode: only struggling + learning + new (never mastered, even if due)
+      return sortWordsBySmartPriority(words.filter(w => w.memoryStatus !== 'mastered'));
+    case 'revision':
+      // Due for review: everything whose scheduled date has arrived
+      return sortWordsBySmartPriority(words.filter(w => isDue(w, now)));
+    case 'struggling':
+      return sortWordsBySmartPriority(words.filter(w => w.memoryStatus === 'struggling'));
+    case 'learning':
+      return sortWordsBySmartPriority(words.filter(w => w.memoryStatus === 'learning'));
+    case 'all':
+      // All words in the word bank including all mastered words
+      return sortWordsBySmartPriority(words);
+    default:
+      return sortWordsBySmartPriority(words);
+  }
+}
+
+/** Options for building a casual practice deck (no SRS impact). */
+export interface PracticeDeckOptions {
+  ids?: string[]; // Explicit selection from the Word Bank
+  status?: string; // OR a status tab, e.g. 'all' | 'learning' | 'struggling'
+}
+
+/** Compose a casual practice queue from an explicit id list or a status tab. */
+export function composePracticeDeck(words: Word[], options: PracticeDeckOptions = {}): Word[] {
+  if (options.ids && options.ids.length > 0) {
+    const idSet = new Set(options.ids);
+    return words.filter(w => idSet.has(w.id));
+  }
+  if (options.status) {
+    return options.status === 'all'
+      ? words
+      : words.filter(w => w.memoryStatus === options.status);
+  }
+  return words;
+}
+
+/** Aggregate per-deck counts used to decorate deck-switcher buttons. */
+export interface DeckCounts {
+  smart: number;
+  due: number;
+  struggling: number;
+  masteredOmitted: number;
+  total: number;
+}
+
+/** Compute deck badge counts over the full word bank (pure, testable). */
+export function computeDeckCounts(words: Word[], now: number = Date.now()): DeckCounts {
+  return {
+    smart: words.filter(w => w.memoryStatus !== 'mastered' || isDue(w, now)).length,
+    due: words.filter(w => isDue(w, now)).length,
+    struggling: words.filter(w => w.memoryStatus === 'struggling').length,
+    masteredOmitted: words.filter(w => w.memoryStatus === 'mastered' && !isDue(w, now)).length,
+    total: words.length,
+  };
+}
+
 /**
  * Remove Arabic diacritics (harakāt) for flexible fuzzy matching during typing tests
  */

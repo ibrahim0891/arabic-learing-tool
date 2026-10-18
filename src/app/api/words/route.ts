@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataStore } from '@/lib/supabase-store';
 import { stripHarakat } from '@/lib/srs';
+import { checkWordDuplicate } from '@/lib/duplicate-checker';
 
 // GET /api/words - List and search words with filters
 export async function GET(req: NextRequest) {
@@ -51,14 +52,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Arabic spelling and English translation are required' }, { status: 400 });
     }
 
-    // Check duplicate
-    const allWords = await dataStore.getWords();
-    const strippedArabic = stripHarakat(arabic);
-    const isDuplicate = allWords.some(w => stripHarakat(w.arabic) === strippedArabic);
+    // Check duplicate — cross-check both Arabic spelling and English semantic meanings
+    const existingWords = await dataStore.getWords();
+    const duplicate = checkWordDuplicate(
+      { arabic, english },
+      existingWords.map(w => ({
+        id: w.id,
+        arabic: w.arabic,
+        english: w.english,
+        transliteration: w.transliteration,
+      }))
+    );
 
-    if (isDuplicate) {
+    if (duplicate.isDuplicate) {
       return NextResponse.json(
-        { error: `The word "${arabic}" already exists in your Word Bank.` },
+        { error: duplicate.detail || `A word with similar Arabic spelling or English meaning already exists in your Word Bank.` },
         { status: 409 }
       );
     }
