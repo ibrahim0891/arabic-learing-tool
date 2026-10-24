@@ -41,12 +41,14 @@ CREATE TABLE IF NOT EXISTS public.words (
   next_review_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_reviewed_date TIMESTAMPTZ,
   additional_examples JSONB DEFAULT '[]'::jsonb,
-  root_family JSONB DEFAULT '[]'::jsonb
+  root_family JSONB DEFAULT '[]'::jsonb,
+  example_breakdown JSONB DEFAULT '[]'::jsonb
 );
 
 -- Migration for existing words table
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS additional_examples JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS root_family JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS example_breakdown JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_arabic TEXT;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_transliteration TEXT;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS plural_english TEXT;

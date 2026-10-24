@@ -31,8 +31,13 @@ import {
 } from 'lucide-react';
 import { Word, ExampleSentence, RootFamilyWord } from '@/lib/types';
 import { AudioPronounceButton } from '@/components/AudioPronounceButton';
+import { WordBreakdownPanel } from '@/components/WordBreakdownPanel';
 import { Button } from '@/components/ui/Button';
 import { useStats } from '@/context/StatsContext';
+
+// Keep the example-sentence breakdown faithful to the sentence as written
+const EXAMPLE_REGISTER =
+  'Analyze the sentence exactly as written — Modern Standard Arabic with full harakat or Educated Spoken Arabic (اللَّهْجَة الْبَيْضَاء).';
 
 type TabKey = 'rootFamily' | 'examples' | 'details';
 
@@ -541,6 +546,15 @@ export default function WordDetailPage() {
               <p className="text-xs font-serif italic text-[var(--ink-primary)]">
                 "{word.exampleEnglish}"
               </p>
+
+              <WordBreakdownPanel
+                arabic={word.exampleArabic}
+                english={word.exampleEnglish}
+                register={EXAMPLE_REGISTER}
+                wordId={word.id}
+                initialBreakdown={word.exampleBreakdown}
+                className="pt-1"
+              />
             </div>
 
             {/* LINGUISTIC FORMS (Plural & Opposite) */}
@@ -1086,6 +1100,15 @@ export default function WordDetailPage() {
                 <p className="text-sm font-serif italic text-[var(--ink-primary)]">
                   "{word.exampleEnglish}"
                 </p>
+
+                <WordBreakdownPanel
+                  arabic={word.exampleArabic}
+                  english={word.exampleEnglish}
+                  register={EXAMPLE_REGISTER}
+                  wordId={word.id}
+                  initialBreakdown={word.exampleBreakdown}
+                  className="pt-1"
+                />
               </div>
 
               {/* Additional Sentences */}
@@ -1156,6 +1179,16 @@ export default function WordDetailPage() {
                     <p className="text-sm font-serif italic text-[var(--ink-primary)]">
                       "{ex.english}"
                     </p>
+
+                    <WordBreakdownPanel
+                      arabic={ex.arabic}
+                      english={ex.english}
+                      register={EXAMPLE_REGISTER}
+                      wordId={word.id}
+                      exampleId={ex.id}
+                      initialBreakdown={ex.breakdown}
+                      className="pt-1"
+                    />
                   </div>
                 ))
               )}

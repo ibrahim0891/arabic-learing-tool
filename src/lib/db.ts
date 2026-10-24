@@ -81,6 +81,7 @@ function getDatabaseInstance() {
         nextReviewDate TEXT NOT NULL,
         lastReviewedDate TEXT,
         additionalExamples TEXT,
+        exampleBreakdown TEXT,
         FOREIGN KEY(setId) REFERENCES word_sets(id) ON DELETE SET NULL
       );
 
@@ -169,6 +170,7 @@ function getDatabaseInstance() {
     // Safe migration for existing SQLite files
     const safeMigrations = [
       "ALTER TABLE words ADD COLUMN additionalExamples TEXT;",
+      "ALTER TABLE words ADD COLUMN exampleBreakdown TEXT;",
       "ALTER TABLE words ADD COLUMN rootFamily TEXT;",
       "ALTER TABLE words ADD COLUMN pluralArabic TEXT;",
       "ALTER TABLE words ADD COLUMN pluralTransliteration TEXT;",

@@ -78,6 +78,15 @@ export function mapSupabaseWordToModel(row: any): Word {
     exampleArabic: row.example_arabic ?? row.exampleArabic ?? '',
     exampleTransliteration: row.example_transliteration ?? row.exampleTransliteration ?? '',
     exampleEnglish: row.example_english ?? row.exampleEnglish ?? '',
+    exampleBreakdown: typeof row.example_breakdown === 'string'
+      ? (() => { try { return JSON.parse(row.example_breakdown); } catch (_) { return []; } })()
+      : Array.isArray(row.example_breakdown)
+      ? row.example_breakdown
+      : typeof row.exampleBreakdown === 'string'
+      ? (() => { try { return JSON.parse(row.exampleBreakdown); } catch (_) { return []; } })()
+      : Array.isArray(row.exampleBreakdown)
+      ? row.exampleBreakdown
+      : [],
     explanation: row.explanation || '',
     topic: row.topic || 'daily life',
     difficulty: row.difficulty || 'beginner',
@@ -134,6 +143,7 @@ export function mapWordModelToSupabase(word: Partial<Word>): any {
   if (word.exampleArabic !== undefined) row.example_arabic = word.exampleArabic;
   if (word.exampleTransliteration !== undefined) row.example_transliteration = word.exampleTransliteration;
   if (word.exampleEnglish !== undefined) row.example_english = word.exampleEnglish;
+  if (word.exampleBreakdown !== undefined) row.example_breakdown = JSON.stringify(word.exampleBreakdown);
   if (word.explanation !== undefined) row.explanation = word.explanation;
   if (word.topic !== undefined) row.topic = word.topic;
   if (word.difficulty !== undefined) row.difficulty = word.difficulty;
@@ -397,6 +407,15 @@ export const dataStore = {
           } catch (_) {}
         }
       }
+      if (!word.exampleBreakdown || word.exampleBreakdown.length === 0) {
+        const breakdownRow = db.prepare('SELECT exampleBreakdown FROM words WHERE id = ?').get(wordId) as { exampleBreakdown?: string | null } | undefined;
+        if (breakdownRow?.exampleBreakdown) {
+          try {
+            const parsed = JSON.parse(breakdownRow.exampleBreakdown);
+            if (Array.isArray(parsed) && parsed.length > 0) word.exampleBreakdown = parsed;
+          } catch (_) {}
+        }
+      }
       const formRow = db.prepare('SELECT * FROM word_linguistic_forms WHERE word_id = ?').get(wordId) as {
         plural_arabic?: string | null;
         plural_transliteration?: string | null;
@@ -543,21 +562,23 @@ export const dataStore = {
     const supabasePayload = mapWordModelToSupabase(updates);
     let supabaseUpdatedData: any = null;
 
-    // 1. Try Supabase update
+    // 1. Try Supabase update. Optional JSON columns may not exist yet on older
+    // remote schemas, so strip them one at a time and retry instead of losing
+    // the whole update.
     try {
-      const { data, error } = await supabase.from('words').update(supabasePayload).eq('id', id).select().single();
-      if (!error && data) {
-        supabaseUpdatedData = data;
-      } else if (error && supabasePayload.additional_examples) {
-        // If Supabase table doesn't have additional_examples column yet, update other fields
-        const strippedPayload = { ...supabasePayload };
-        delete strippedPayload.additional_examples;
-        if (Object.keys(strippedPayload).length > 0) {
-          const retryRes = await supabase.from('words').update(strippedPayload).eq('id', id).select().single();
-          if (!retryRes.error && retryRes.data) {
-            supabaseUpdatedData = retryRes.data;
-          }
+      const optionalColumns = ['example_breakdown', 'additional_examples', 'root_family'];
+      for (let attempt = 0; attempt <= optionalColumns.length; attempt++) {
+        if (Object.keys(supabasePayload).length === 0) break;
+
+        const { data, error } = await supabase.from('words').update(supabasePayload).eq('id', id).select().single();
+        if (!error && data) {
+          supabaseUpdatedData = data;
+          break;
         }
+
+        const missingColumn = optionalColumns.find((column) => column in supabasePayload);
+        if (!missingColumn) break;
+        delete supabasePayload[missingColumn];
       }
     } catch (err) {}
 
@@ -615,14 +636,16 @@ export const dataStore = {
           baseData = data;
         }
         if (baseData) {
+          const existingBreakdown = baseData.example_breakdown ?? baseData.exampleBreakdown;
           db.prepare(`
             INSERT OR REPLACE INTO words (
               id, arabic, transliteration, english, wordType, presentTenseI, presentTenseHe, root,
               exampleArabic, exampleTransliteration, exampleEnglish, explanation, topic, difficulty,
               setId, setName, dateAdded, timesTested, timesCorrect, timesIncorrect, memoryStatus,
               easeFactor, intervalDays, repetitionCount, nextReviewDate, lastReviewedDate, additionalExamples,
+              exampleBreakdown,
               pluralArabic, pluralTransliteration, pluralEnglish, oppositeArabic, oppositeTransliteration, oppositeEnglish
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             baseData.id, baseData.arabic, baseData.transliteration || '', baseData.english, baseData.word_type || baseData.wordType || 'noun',
             baseData.present_tense_i ?? baseData.presentTenseI ?? null, baseData.present_tense_he ?? baseData.presentTenseHe ?? null, baseData.root || null,
@@ -634,6 +657,13 @@ export const dataStore = {
             baseData.repetition_count ?? baseData.repetitionCount ?? 0, baseData.next_review_date ?? baseData.nextReviewDate ?? new Date().toISOString(),
             baseData.last_reviewed_date ?? baseData.lastReviewedDate ?? null,
             updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null,
+            updates.exampleBreakdown !== undefined
+              ? JSON.stringify(updates.exampleBreakdown)
+              : typeof existingBreakdown === 'string'
+                ? existingBreakdown
+                : existingBreakdown
+                  ? JSON.stringify(existingBreakdown)
+                  : null,
             updates.pluralArabic ?? baseData.plural_arabic ?? null,
             updates.pluralTransliteration ?? baseData.plural_transliteration ?? null,
             updates.pluralEnglish ?? baseData.plural_english ?? null,
@@ -657,6 +687,7 @@ export const dataStore = {
             arabic = COALESCE(?, arabic),
             english = COALESCE(?, english),
             additionalExamples = COALESCE(?, additionalExamples),
+            exampleBreakdown = COALESCE(?, exampleBreakdown),
             pluralArabic = COALESCE(?, pluralArabic),
             pluralTransliteration = COALESCE(?, pluralTransliteration),
             pluralEnglish = COALESCE(?, pluralEnglish),
@@ -669,6 +700,7 @@ export const dataStore = {
           updates.easeFactor ?? null, updates.intervalDays ?? null, updates.repetitionCount ?? null, updates.nextReviewDate ?? null,
           updates.lastReviewedDate ?? null, updates.arabic ?? null, updates.english ?? null,
           updates.additionalExamples !== undefined ? JSON.stringify(updates.additionalExamples) : null,
+          updates.exampleBreakdown !== undefined ? JSON.stringify(updates.exampleBreakdown) : null,
           updates.pluralArabic ?? null, updates.pluralTransliteration ?? null, updates.pluralEnglish ?? null,
           updates.oppositeArabic ?? null, updates.oppositeTransliteration ?? null, updates.oppositeEnglish ?? null,
           id
@@ -685,6 +717,9 @@ export const dataStore = {
       if (updates.additionalExamples !== undefined) {
         wordModel.additionalExamples = updates.additionalExamples;
       }
+      if (updates.exampleBreakdown !== undefined) {
+        wordModel.exampleBreakdown = updates.exampleBreakdown;
+      }
       return wordModel;
     }
 
@@ -692,6 +727,9 @@ export const dataStore = {
       const wordModel = mapSupabaseWordToModel(supabaseUpdatedData);
       if (updates.additionalExamples !== undefined) {
         wordModel.additionalExamples = updates.additionalExamples;
+      }
+      if (updates.exampleBreakdown !== undefined) {
+        wordModel.exampleBreakdown = updates.exampleBreakdown;
       }
       return wordModel;
     }

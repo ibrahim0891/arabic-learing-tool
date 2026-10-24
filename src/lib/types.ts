@@ -17,6 +17,7 @@ export interface ExampleSentence {
   english: string;
   scenario?: string; // e.g. "Formal/Business", "Casual Conversation", "Grammar Variation", etc.
   createdAt?: string;
+  breakdown?: WordBreakdownItem[]; // Cached AI word-by-word analysis
 }
 
 export interface DailySentence {
@@ -69,6 +70,7 @@ export interface Word {
   exampleArabic: string;
   exampleTransliteration: string;
   exampleEnglish: string;
+  exampleBreakdown?: WordBreakdownItem[]; // Cached AI word-by-word analysis of the primary sentence
   explanation: string;
   additionalExamples?: ExampleSentence[]; // Additional AI-generated sentences
   rootFamily?: RootFamilyWord[]; // 6-10 AI-derived words from the same root

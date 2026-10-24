@@ -2,57 +2,67 @@
 @import "tailwindcss";
 
 :root {
-  /* DEFAULT THEME: Warm Editorial Linen (Light Theme by Default) */
-  --bg-primary: #f8f6f0;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-  --border-subtle: rgba(28, 24, 21, 0.12);
-  --border-strong: rgba(28, 24, 21, 0.28);
-  --ink-primary: #191614;
-  --ink-secondary: #48413b;
-  --ink-muted: #746c63;
-  --accent-ochre: #b47528;
-  --accent-ochre-dim: rgba(180, 117, 40, 0.12);
+  /* FASĪH WORKSPACE DESIGN SYSTEM */
+  --bg-primary: #F6F7F8;
+  --bg-canvas: #F6F7F8;
+  --bg-sidebar: #FBFBFA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-accent-tint: #FBF3E7;
+  --border-subtle: #E4E6E8;
+  --border-strong: #CBD0D6;
+  --border-accent: #E8CCAA;
+  --ink-primary: #252A30;
+  --ink-secondary: #707780;
+  --ink-muted: #92979D;
+  --accent-ochre: #A46518;
+  --accent-ochre-dim: #FBF3E7;
   --accent-cypress: #245741;
-  --accent-cypress-dim: rgba(36, 87, 65, 0.15);
+  --accent-cypress-dim: rgba(36, 87, 65, 0.12);
   --accent-terracotta: #ab442e;
   --font-serif: 'Newsreader', Georgia, Cambria, serif;
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-arabic: 'Noto Naskh Arabic', 'Amiri', serif;
 }
 
 [data-theme='light'] {
-  /* Explicit light theme */
-  --bg-primary: #f8f6f0;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-  --border-subtle: rgba(28, 24, 21, 0.12);
-  --border-strong: rgba(28, 24, 21, 0.28);
-  --ink-primary: #191614;
-  --ink-secondary: #48413b;
-  --ink-muted: #746c63;
-  --accent-ochre: #b47528;
-  --accent-ochre-dim: rgba(180, 117, 40, 0.12);
+  --bg-primary: #F6F7F8;
+  --bg-canvas: #F6F7F8;
+  --bg-sidebar: #FBFBFA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-accent-tint: #FBF3E7;
+  --border-subtle: #E4E6E8;
+  --border-strong: #CBD0D6;
+  --border-accent: #E8CCAA;
+  --ink-primary: #252A30;
+  --ink-secondary: #707780;
+  --ink-muted: #92979D;
+  --accent-ochre: #A46518;
+  --accent-ochre-dim: #FBF3E7;
   --accent-cypress: #245741;
-  --accent-cypress-dim: rgba(36, 87, 65, 0.15);
+  --accent-cypress-dim: rgba(36, 87, 65, 0.12);
   --accent-terracotta: #ab442e;
 }
 
 [data-theme='dark'] {
-  /* Slate / Charcoal Dark Theme (NOT pitch black) with strict contrast ratios */
-  --bg-primary: #1e222b;
-  --bg-surface: #262c37;
-  --bg-surface-elevated: #2f3644;
-  --border-subtle: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.24);
-  --ink-primary: #f8fafc;
-  --ink-secondary: #cbd5e1;
-  --ink-muted: #94a3b8;
-  --accent-ochre: #e09f48;
-  --accent-ochre-dim: rgba(224, 159, 72, 0.18);
-  --accent-cypress: #4e9473;
+  --bg-primary: #171A1E;
+  --bg-canvas: #171A1E;
+  --bg-sidebar: #1C2026;
+  --bg-surface: #22272F;
+  --bg-surface-elevated: #2B323C;
+  --bg-accent-tint: rgba(164, 101, 24, 0.15);
+  --border-subtle: #2F3642;
+  --border-strong: #404958;
+  --border-accent: #5B4323;
+  --ink-primary: #F3F4F6;
+  --ink-secondary: #9CA3AF;
+  --ink-muted: #6B7280;
+  --accent-ochre: #D9822B;
+  --accent-ochre-dim: rgba(217, 130, 43, 0.18);
+  --accent-cypress: #4E9473;
   --accent-cypress-dim: rgba(78, 148, 115, 0.22);
-  --accent-terracotta: #f87171;
+  --accent-terracotta: #F87171;
 }
 
 * {
@@ -65,8 +75,6 @@ body {
   font-family: var(--font-sans);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px);
-  background-size: 28px 28px;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
