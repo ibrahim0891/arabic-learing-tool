@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FlashcardStudyView } from '@/components/FlashcardStudyView';
+import { FlashcardStudyArena } from './_sections/FlashcardStudyArena';
 import { useStats } from '@/context/StatsContext';
 
 function FlashcardContent() {
@@ -13,7 +13,7 @@ function FlashcardContent() {
   const { refreshStats } = useStats();
 
   return (
-    <FlashcardStudyView
+    <FlashcardStudyArena
       initialFilter={filter}
       initialMode={mode}
       initialStatus={status}
@@ -26,7 +26,7 @@ export default function FlashcardsPage() {
   return (
     <Suspense
       fallback={
-        <div className="py-24 text-center text-[var(--ink-muted)] space-y-3">
+        <div className="py-24 text-center text-[var(--ink-secondary)] space-y-3">
           <div className="font-arabic text-4xl text-[var(--accent-ochre)] animate-pulse">
             جَارٍ تَحْمِيلُ البِطَاقَاتِ...
           </div>

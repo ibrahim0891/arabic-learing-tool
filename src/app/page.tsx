@@ -1,56 +1,32 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { DashboardView } from '@/components/DashboardView';
 import { useStats } from '@/context/StatsContext';
+import { HeroSection } from './_sections/HeroSection';
+import { MetricOverviewSection } from './_sections/MetricOverviewSection';
+import { DailyArabicSection } from './_sections/DailyArabicSection';
+import { LearningActivitiesSection } from './_sections/LearningActivitiesSection';
+import { RecentActivitySection } from './_sections/RecentActivitySection';
 
 export default function HomePage() {
-  const router = useRouter();
   const { stats } = useStats();
 
-  const handleNavigate = (view: 'dashboard' | 'generate' | 'flashcards' | 'test' | 'library') => {
-    switch (view) {
-      case 'dashboard':
-        router.push('/');
-        break;
-      case 'generate':
-        router.push('/generate');
-        break;
-      case 'flashcards':
-        router.push('/flashcards');
-        break;
-      case 'test':
-        router.push('/quiz');
-        break;
-      case 'library':
-        router.push('/library');
-        break;
-    }
-  };
-
-  const handleQuickStudy = (filter?: string) => {
-    if (filter && filter !== 'all') {
-      router.push(`/flashcards?filter=${filter}`);
-    } else {
-      router.push('/flashcards');
-    }
-  };
-
-  const handleQuickTest = (filter?: string) => {
-    if (filter && filter !== 'all') {
-      router.push(`/quiz?filter=${filter}`);
-    } else {
-      router.push('/quiz');
-    }
-  };
-
   return (
-    <DashboardView
-      stats={stats}
-      onNavigate={handleNavigate}
-      onQuickStudy={handleQuickStudy}
-      onQuickTest={handleQuickTest}
-    />
+    <div className="p-6 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-[28px] animate-fadeIn">
+      {/* 1. Page Heading & Welcome */}
+      <HeroSection />
+
+      {/* 2. Learning Overview (3 Metric Cards) */}
+      <MetricOverviewSection stats={stats} />
+
+      {/* 3. Daily Arabic Inspiration Panel */}
+      <DailyArabicSection />
+
+      {/* 4. Learning Activities (Featured Learn Card + Practice Cards) */}
+      <LearningActivitiesSection stats={stats} />
+
+      {/* 5. Recent Activity History */}
+      <RecentActivitySection stats={stats} />
+    </div>
   );
 }

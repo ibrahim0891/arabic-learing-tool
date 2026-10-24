@@ -440,7 +440,7 @@ export default function WordDetailPage() {
   ];
 
   return (
-    <div className="w-full space-y-6 animate-fadeIn pb-16">
+    <div className="p-6 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-6 animate-fadeIn pb-16">
       
       {/* Sleek Minimal Breadcrumb Header (No duplicate navbar) */}
       <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
@@ -608,7 +608,7 @@ export default function WordDetailPage() {
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition cursor-pointer ${
                             addedFormTypes.has('plural')
                               ? 'bg-[var(--accent-cypress-dim)] text-[var(--accent-cypress)] cursor-default'
-                              : 'bg-[#9a5d16] text-white hover:bg-[#854f12]'
+                              : 'bg-[var(--accent-ochre)] text-white hover:opacity-90 shadow-2xs'
                           }`}
                           title="Save plural to Word Bank"
                         >
@@ -669,7 +669,7 @@ export default function WordDetailPage() {
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition cursor-pointer ${
                             addedFormTypes.has('opposite')
                               ? 'bg-[var(--accent-cypress-dim)] text-[var(--accent-cypress)] cursor-default'
-                              : 'bg-[#9a5d16] text-white hover:bg-[#854f12]'
+                              : 'bg-[var(--accent-ochre)] text-white hover:opacity-90 shadow-2xs'
                           }`}
                           title="Save opposite to Word Bank"
                         >
@@ -740,19 +740,20 @@ export default function WordDetailPage() {
         <section className="lg:col-span-8 xl:col-span-8 space-y-5 min-w-0">
           
           {/* TAB NAVIGATION BAR */}
-          <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2 overflow-x-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 border-b border-[var(--border-subtle)] pb-2 overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setActiveTab('rootFamily')}
-              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
                 activeTab === 'rootFamily'
-                  ? 'bg-[#9a5d16] text-white shadow-sm font-bold'
+                  ? 'bg-[var(--accent-ochre)] text-white shadow-xs font-bold'
                   : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface)]'
               }`}
             >
-              <Layers className="w-4 h-4" />
-              <span>Root Family (عَائِلَةُ الْجِذْر)</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Root Family (عَائِلَةُ الْجِذْر)</span>
+              <span className="sm:hidden">Roots</span>
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
                 activeTab === 'rootFamily' ? 'bg-white/20 text-white' : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-muted)]'
               }`}>
                 {rootFamily.length}
@@ -762,15 +763,16 @@ export default function WordDetailPage() {
             <button
               type="button"
               onClick={() => setActiveTab('examples')}
-              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
                 activeTab === 'examples'
-                  ? 'bg-[#9a5d16] text-white shadow-sm font-bold'
+                  ? 'bg-[var(--accent-ochre)] text-white shadow-xs font-bold'
                   : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface)]'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              <span>Contextual Examples (أَمْثِلَة)</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Contextual Examples (أَمْثِلَة)</span>
+              <span className="sm:hidden">Examples</span>
+              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold ${
                 activeTab === 'examples' ? 'bg-white/20 text-white' : 'bg-[var(--bg-surface-elevated)] text-[var(--ink-muted)]'
               }`}>
                 {totalSentencesCount}
@@ -780,14 +782,15 @@ export default function WordDetailPage() {
             <button
               type="button"
               onClick={() => setActiveTab('details')}
-              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
                 activeTab === 'details'
-                  ? 'bg-[#9a5d16] text-white shadow-sm font-bold'
+                  ? 'bg-[var(--accent-ochre)] text-white shadow-xs font-bold'
                   : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface)]'
               }`}
             >
-              <Sliders className="w-4 h-4" />
-              <span>Linguistic Analysis & Stats</span>
+              <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Linguistic Analysis & Stats</span>
+              <span className="sm:hidden">Analysis</span>
             </button>
           </div>
 

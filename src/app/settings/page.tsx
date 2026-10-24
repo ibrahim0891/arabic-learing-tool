@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { SettingsView } from '@/components/SettingsView';
+import { SettingsWorkspace } from './_sections/SettingsWorkspace';
 import { useStats } from '@/context/StatsContext';
 
 export default function SettingsPage() {
@@ -10,7 +10,7 @@ export default function SettingsPage() {
   const { refreshStats } = useStats();
 
   return (
-    <SettingsView
+    <SettingsWorkspace
       onResetCompleted={() => refreshStats()}
       onNavigateHome={() => router.push('/')}
     />

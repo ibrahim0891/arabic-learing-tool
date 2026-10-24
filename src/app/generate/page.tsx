@@ -2,15 +2,15 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { WordGeneratorView } from '@/components/WordGeneratorView';
 import { useStats } from '@/context/StatsContext';
+import { GenerateWorkspace } from './_sections/GenerateWorkspace';
 
 export default function GeneratePage() {
   const router = useRouter();
   const { refreshStats } = useStats();
 
   return (
-    <WordGeneratorView
+    <GenerateWorkspace
       onSavedSuccess={() => refreshStats()}
       onNavigateToStudy={() => router.push('/flashcards')}
     />

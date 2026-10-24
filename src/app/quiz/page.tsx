@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TestGeneratorView } from '@/components/TestGeneratorView';
+import { QuizWorkspace } from './_sections/QuizWorkspace';
 import { useStats } from '@/context/StatsContext';
 
 function QuizContent() {
@@ -11,7 +11,7 @@ function QuizContent() {
   const { refreshStats } = useStats();
 
   return (
-    <TestGeneratorView
+    <QuizWorkspace
       initialFilter={filter}
       onTestComplete={() => refreshStats()}
     />

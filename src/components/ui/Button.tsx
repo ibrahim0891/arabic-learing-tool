@@ -31,24 +31,24 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     // Base layout & interaction
     const baseStyles =
-      'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
+      'inline-flex items-center justify-center gap-2 font-sans font-semibold rounded-[8px] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
 
     // Size mappings
     const sizeStyles: Record<ButtonSize, string> = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-4 py-2.5 text-xs sm:text-sm',
-      lg: 'px-6 py-3.5 text-sm sm:text-base font-semibold',
+      sm: 'px-3 py-1.5 text-[12px] leading-[18px]',
+      md: 'px-[18px] py-[10px] text-[13px] leading-[20px] min-h-[40px]',
+      lg: 'px-6 py-3.5 text-[14px] leading-[21px]',
     };
 
     // Variant mappings with guaranteed crisp contrast across light & dark themes
     const variantStyles: Record<ButtonVariant, string> = {
-      // Primary: Rich warm ochre with crisp pure-white text and subtle elevation
+      // Primary: Rich warm ochre with crisp pure-white text
       primary:
-        'bg-[#9a5d16] hover:bg-[#834e10] text-white shadow-sm hover:shadow active:shadow-none border border-transparent font-semibold',
+        'bg-[var(--accent-ochre)] hover:opacity-95 text-white border border-[var(--accent-ochre)] shadow-xs',
       
-      // Secondary: Solid elevated surface with subtle border
+      // Secondary: Solid white surface with subtle border
       secondary:
-        'bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-surface)] text-[var(--ink-primary)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)]',
+        'bg-[var(--bg-surface)] hover:bg-[var(--bg-primary)] text-[var(--ink-primary)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)]',
       
       // Outline: Transparent with border and subtle hover fill
       outline:
@@ -56,7 +56,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       
       // Danger: Clear red action with white text
       danger:
-        'bg-red-600 hover:bg-red-700 text-white shadow-sm border border-transparent font-semibold',
+        'bg-red-600 hover:bg-red-700 text-white shadow-xs border border-transparent',
       
       // Ghost: Borderless quiet button
       ghost:
@@ -64,8 +64,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
       // Pill: For filter tags, options & categories
       pill: isActive
-        ? 'bg-[#9a5d16] text-white font-semibold shadow-xs border border-transparent'
-        : 'bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--border-strong)]',
+        ? 'bg-[var(--accent-ochre)] text-white shadow-xs border border-transparent'
+        : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--border-strong)]',
     };
 
     return (

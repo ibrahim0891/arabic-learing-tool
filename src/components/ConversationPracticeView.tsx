@@ -16,12 +16,14 @@ import {
   Info,
   X,
   Search,
-  CheckCircle2,
+  Check,
   BookOpen
 } from 'lucide-react';
 import { ConversationSession, ChatMessage, WordBreakdownItem } from '@/lib/types';
 import { AudioPronounceButton } from './AudioPronounceButton';
 import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { ArabicText } from './ui/ArabicText';
 
 const PRESET_TOPICS = [
   { id: 'cafe', label: 'Ordering at a Cafe', prompt: 'Two friends meeting at a lively coffee shop ordering drinks and discussing their day.' },
@@ -31,34 +33,7 @@ const PRESET_TOPICS = [
   { id: 'work', label: 'Work & Professional Chat', prompt: 'Two colleagues discussing a project milestone and setting up a meeting.' },
 ];
 
-const AVATAR_PALETTES = [
-  'from-amber-500/20 to-orange-500/20 text-amber-500 border-amber-500/30',
-  'from-emerald-500/20 to-teal-500/20 text-emerald-500 border-emerald-500/30',
-  'from-sky-500/20 to-blue-500/20 text-sky-500 border-sky-500/30',
-  'from-rose-500/20 to-pink-500/20 text-rose-500 border-rose-500/30',
-  'from-violet-500/20 to-purple-500/20 text-violet-500 border-violet-500/30',
-];
-
-// Max word rows shown before the breakdown list collapses behind a "Show all" toggle
 const BREAKDOWN_PREVIEW_COUNT = 5;
-
-const SPEAKER_STYLES = [
-  {
-    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
-    bubble: 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/50 shadow-xs',
-    avatar: 'bg-gradient-to-br from-amber-500/20 to-amber-600/30 text-amber-600 dark:text-amber-400 border-amber-500/30',
-  },
-  {
-    badge: 'bg-[#9a5d16]/15 text-[#9a5d16] dark:text-[#e09848] border-[#9a5d16]/30',
-    bubble: 'bg-gradient-to-br from-[#9a5d16]/12 via-[#9a5d16]/8 to-[var(--bg-surface-elevated)] border border-[#9a5d16]/30 hover:border-[#9a5d16]/55 shadow-xs',
-    avatar: 'bg-gradient-to-br from-[#9a5d16]/25 to-[#9a5d16]/40 text-[#9a5d16] dark:text-[#e09848] border-[#9a5d16]/35',
-  },
-  {
-    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-    bubble: 'bg-gradient-to-br from-emerald-500/10 to-[var(--bg-surface-elevated)] border border-emerald-500/30 hover:border-emerald-500/50 shadow-xs',
-    avatar: 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-  },
-];
 
 export const ConversationPracticeView: React.FC = () => {
   // Modal creation state
@@ -87,14 +62,13 @@ export const ConversationPracticeView: React.FC = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Interactive message bubble state: tracks which message has its translation/transliteration revealed
+  // Interactive message bubble state: tracks which message has its translation revealed
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // On-demand AI word-by-word breakdown state
   const [breakdownLoadingId, setBreakdownLoadingId] = useState<string | null>(null);
   const [breakdownError, setBreakdownError] = useState<string | null>(null);
-  // Which message breakdowns are fully expanded (others collapse to a preview)
   const [expandedBreakdownIds, setExpandedBreakdownIds] = useState<Record<string, boolean>>({});
 
   // Mobile sidebar toggle
@@ -118,24 +92,23 @@ export const ConversationPracticeView: React.FC = () => {
   // Fetch history list & sync active conversation
   useEffect(() => {
     const fetchHistory = async () => {
+      setIsLoadingHistory(true);
       try {
-        setIsLoadingHistory(true);
         const res = await fetch('/api/conversations');
         if (res.ok) {
           const data = await res.json();
-          const list: ConversationSession[] = data.conversations || [];
-          setHistoryList(list);
+          const sessions: ConversationSession[] = data.conversations || data.sessions || [];
+          setHistoryList(sessions);
 
-          // If no active conversation in localStorage or state, default to the latest one
-          if (!activeConversation && list.length > 0) {
-            setActiveConversation(list[0]);
+          if (!activeConversation && sessions.length > 0) {
+            setActiveConversation(sessions[0]);
             try {
-              localStorage.setItem('fasih_active_conversation', JSON.stringify(list[0]));
+              localStorage.setItem('fasih_active_conversation', JSON.stringify(sessions[0]));
             } catch (_) {}
           }
         }
       } catch (err) {
-        console.warn('Could not load conversations:', err);
+        console.error('Failed to load conversation history:', err);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -144,235 +117,237 @@ export const ConversationPracticeView: React.FC = () => {
     fetchHistory();
   }, []);
 
+  // Auto scroll to bottom when opening or switching conversation
+  useEffect(() => {
+    if (activeConversation && chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeConversation?.id]);
+
   const handleSelectConversation = (conv: ConversationSession) => {
     setActiveConversation(conv);
+    setIsMobileSidebarOpen(false);
     setExpandedMessageId(null);
+    setExpandedBreakdownIds({});
     try {
       localStorage.setItem('fasih_active_conversation', JSON.stringify(conv));
     } catch (_) {}
-    setIsMobileSidebarOpen(false);
+  };
+
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    try {
+      const res = await fetch(`/api/conversations?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        const updated = historyList.filter((c) => c.id !== id);
+        setHistoryList(updated);
+
+        if (activeConversation?.id === id) {
+          const nextActive = updated[0] || null;
+          setActiveConversation(nextActive);
+          if (nextActive) {
+            localStorage.setItem('fasih_active_conversation', JSON.stringify(nextActive));
+          } else {
+            localStorage.removeItem('fasih_active_conversation');
+          }
+        }
+        setConfirmDeleteId(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
   };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setErrorMsg(null);
 
-    const topicLabel = customTopic.trim()
-      ? customTopic.trim()
-      : PRESET_TOPICS.find((p) => p.id === selectedPreset)?.prompt || 'Everyday conversation';
+    const presetObj = PRESET_TOPICS.find((p) => p.id === selectedPreset);
+    const finalTopic = customTopic.trim() || (presetObj ? presetObj.label : 'Everyday Conversation');
+    const promptDetails = customTopic.trim() || (presetObj ? presetObj.prompt : '');
 
     try {
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic: topicLabel,
+          topic: finalTopic,
+          promptDetails,
           difficulty,
           speakerCount,
-          turns: turnsCount,
+          turnsCount,
           includeKnownWords,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to generate dialogue');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate dialogue.');
       }
 
       const data = await res.json();
-      if (data.conversation) {
-        const newConv: ConversationSession = data.conversation;
-        setActiveConversation(newConv);
-        setHistoryList((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
-        setExpandedMessageId(null);
+      const newSession: ConversationSession | null = data.conversation || data.session || null;
+      if (newSession) {
+        setHistoryList((prev) => [newSession, ...prev]);
+        setActiveConversation(newSession);
         try {
-          localStorage.setItem('fasih_active_conversation', JSON.stringify(newConv));
+          localStorage.setItem('fasih_active_conversation', JSON.stringify(newSession));
         } catch (_) {}
         setIsModalOpen(false);
+        setCustomTopic('');
+      } else {
+        throw new Error('No dialogue session returned from server.');
       }
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err?.message || 'Error communicating with AI service');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Something went wrong while generating dialogue.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleDelete = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      await fetch(`/api/conversations?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      setHistoryList((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversation?.id === id) {
-        const remaining = historyList.filter((c) => c.id !== id);
-        const nextActive = remaining.length > 0 ? remaining[0] : null;
-        setActiveConversation(nextActive);
-        if (nextActive) {
-          localStorage.setItem('fasih_active_conversation', JSON.stringify(nextActive));
-        } else {
-          localStorage.removeItem('fasih_active_conversation');
-        }
-      }
-      setConfirmDeleteId(null);
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
-  };
-
-  // Generate an on-demand word-by-word breakdown for a single dialogue line
-  const handleGenerateBreakdown = async (msg: ChatMessage, e: React.MouseEvent) => {
+  const handleGenerateBreakdown = async (message: ChatMessage, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (breakdownLoadingId) return;
+    if (breakdownLoadingId === message.id) return;
 
+    setBreakdownLoadingId(message.id);
     setBreakdownError(null);
-    setBreakdownLoadingId(msg.id);
 
     try {
       const res = await fetch('/api/conversations/breakdown', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          arabic: msg.arabic,
-          english: msg.english,
-          conversationId: activeConversation?.id,
-          messageId: msg.id,
+          messageId: message.id,
+          arabic: message.arabic,
+          english: message.english,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to generate word breakdown');
+        throw new Error('Failed to analyze words.');
       }
 
       const data = await res.json();
-      const breakdown: WordBreakdownItem[] = data.breakdown || [];
-
-      const applyBreakdown = (conv: ConversationSession | null): ConversationSession | null => {
-        if (!conv) return conv;
-        return {
-          ...conv,
-          messages: conv.messages.map((m) => (m.id === msg.id ? { ...m, breakdown } : m)),
-        };
-      };
-
-      setActiveConversation((prev) => {
-        const updated = applyBreakdown(prev);
-        if (updated) {
-          try {
-            localStorage.setItem('fasih_active_conversation', JSON.stringify(updated));
-          } catch (_) {}
-        }
-        return updated;
-      });
-
-      setHistoryList((prev) =>
-        prev.map((c) => (c.id === activeConversation?.id ? applyBreakdown(c) || c : c))
-      );
-    } catch (err: any) {
-      console.error(err);
-      setBreakdownError(err?.message || 'Error generating word breakdown');
+      if (data.breakdown && activeConversation) {
+        const updatedMessages = activeConversation.messages.map((m) =>
+          m.id === message.id ? { ...m, breakdown: data.breakdown } : m
+        );
+        const updatedConv = { ...activeConversation, messages: updatedMessages };
+        setActiveConversation(updatedConv);
+        try {
+          localStorage.setItem('fasih_active_conversation', JSON.stringify(updatedConv));
+        } catch (_) {}
+      }
+    } catch (err: unknown) {
+      setBreakdownError(err instanceof Error ? err.message : 'Word breakdown failed.');
     } finally {
       setBreakdownLoadingId(null);
     }
   };
 
-  const filteredHistory = historyList.filter((c) =>
-    c.title.toLowerCase().includes(searchHistory.toLowerCase()) ||
-    c.topic.toLowerCase().includes(searchHistory.toLowerCase()) ||
-    c.speakers.some((s) => s.toLowerCase().includes(searchHistory.toLowerCase()))
-  );
+  const filteredHistory = historyList.filter((conv) => {
+    const q = searchHistory.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      conv.title.toLowerCase().includes(q) ||
+      conv.topic.toLowerCase().includes(q) ||
+      conv.speakers.some((s) => s.toLowerCase().includes(q)) ||
+      conv.messages.some((m) => m.arabic.includes(q) || m.english.toLowerCase().includes(q))
+    );
+  });
 
   return (
-    <div className="w-full h-full flex flex-col bg-[var(--bg-surface)] overflow-hidden font-sans sm:rounded-2xl sm:border border-[var(--border-subtle)] sm:shadow-xs">
-      
-      {/* Top Messenger Header Bar (Lively & Polished) */}
-      <header className="h-14 px-4 sm:px-6 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] flex items-center justify-between gap-3 shrink-0 shadow-xs">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Mobile sidebar toggle button */}
+    <div className="w-full h-full flex flex-col bg-[var(--bg-canvas)] overflow-hidden">
+      {/* Sub-Header Toolbar */}
+      <div className="h-[56px] sm:h-[64px] px-3 sm:px-6 flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            className="md:hidden p-1.5 rounded-lg text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--accent-ochre-dim)] transition cursor-pointer"
-            aria-label="Toggle Conversations List"
+            className="md:hidden p-1.5 rounded-[8px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] transition cursor-pointer shrink-0"
+            title="Toggle history"
+            aria-label="Toggle dialogues list"
           >
-            <History className="w-4 h-4 text-[var(--accent-ochre)]" />
+            <History className="w-4 h-4" />
           </button>
 
-          {/* Icon Badge with warm gradient */}
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#9a5d16] to-[#b87320] text-white font-bold flex items-center justify-center shrink-0 shadow-xs">
+          <div className="hidden sm:flex w-8 h-8 rounded-[8px] bg-[var(--bg-accent-tint)] items-center justify-center shrink-0 text-[var(--accent-ochre)]">
             <MessageSquare className="w-4 h-4" />
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-sm sm:text-base text-[var(--ink-primary)] truncate tracking-tight">
-                {activeConversation ? activeConversation.title : 'Spoken Arabic Dialogues'}
+          <div className="flex flex-col min-w-0 justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
+                {activeConversation ? activeConversation.title : 'Spoken Dialogues'}
               </h1>
               {activeConversation && (
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2 py-0.5 rounded-full border border-[var(--accent-ochre)]/25 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {activeConversation.difficulty}
-                </span>
+                <div className="hidden sm:inline-flex shrink-0">
+                  <Badge variant="ochre" className="capitalize text-[10px]">
+                    {activeConversation.difficulty}
+                  </Badge>
+                </div>
               )}
             </div>
-            <p className="text-[11px] text-[var(--ink-muted)] truncate flex items-center gap-1.5">
+
+            <span className="text-[10px] sm:text-[11px] leading-tight sm:leading-[15px] text-[var(--ink-secondary)] truncate">
               {activeConversation ? (
                 <>
-                  <span className="font-medium text-[var(--ink-secondary)]">{activeConversation.speakers.join(' & ')}</span>
-                  <span>•</span>
-                  <span className="font-mono">{activeConversation.messages.length} lines</span>
+                  <span className="font-medium text-[var(--ink-primary)]">{activeConversation.speakers.join(' & ')}</span>
+                  <span> • </span>
+                  <span>{activeConversation.messages.length} turns</span>
                 </>
               ) : (
-                'Select an existing dialogue or generate a new conversation'
+                'Select or create dialogue'
               )}
-            </p>
+            </span>
           </div>
         </div>
 
-        {/* Action Controls: New Conversation Button & Active Delete */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Action Controls */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {activeConversation && (
             <button
               type="button"
               onClick={() => setConfirmDeleteId(confirmDeleteId ? null : activeConversation.id)}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition cursor-pointer border border-transparent hover:border-red-500/20"
-              title="Delete this conversation"
+              className="p-1.5 sm:p-2 rounded-[8px] text-[var(--ink-secondary)] hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+              title="Delete conversation"
+              aria-label="Delete dialogue"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           )}
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-[#9a5d16] to-[#b87320] hover:from-[#834e10] hover:to-[#9a5d16] text-white shadow-xs hover:shadow transition transform active:scale-[0.98] cursor-pointer"
+            className="px-2.5 sm:px-3 text-[12px] h-8 sm:h-9"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">New Conversation</span>
-            <span className="sm:hidden">New</span>
-          </button>
+            <span className="hidden sm:inline">New Dialogue</span>
+            <span className="sm:hidden font-medium">New</span>
+          </Button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Split Layout: Left Conversations List + Right Chat Feed */}
+      {/* Main Split: Left Dialogues List + Right Chat Feed */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
-        
-        {/* Left Sidebar: Conversations History List (Vibrant & Structured) */}
+        {/* Left Sidebar: Conversations List */}
         <aside
-          className={`w-64 sm:w-72 lg:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col shrink-0 transition-transform duration-200 z-20 md:static md:translate-x-0 ${
+          className={`w-72 sm:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col shrink-0 transition-transform duration-200 z-20 md:static md:translate-x-0 ${
             isMobileSidebarOpen
-              ? 'absolute inset-y-0 left-0 shadow-2xl translate-x-0'
+              ? 'absolute inset-y-0 left-0 shadow-xl translate-x-0'
               : 'absolute inset-y-0 left-0 -translate-x-full md:translate-x-0'
           }`}
         >
-          {/* Search Bar & Counter */}
-          <div className="p-3 border-b border-[var(--border-subtle)] space-y-2 bg-[var(--bg-surface-elevated)]">
-            <div className="flex items-center justify-between text-xs px-0.5">
-              <span className="font-semibold text-[var(--ink-secondary)] flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
-                <span>Conversations</span>
+          {/* Search Bar */}
+          <div className="p-3 border-b border-[var(--border-subtle)] flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[12px] px-1">
+              <span className="font-semibold text-[var(--ink-primary)]">
+                Dialogues
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-muted)]">
+              <span className="text-[11px] text-[var(--ink-secondary)] font-mono">
                 {historyList.length} chats
               </span>
             </div>
@@ -381,93 +356,76 @@ export const ConversationPracticeView: React.FC = () => {
               <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search by topic or speaker..."
+                placeholder="Search dialogues..."
                 value={searchHistory}
                 onChange={(e) => setSearchHistory(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] focus:ring-1 focus:ring-[var(--accent-ochre)]/30 transition"
+                className="w-full pl-8 pr-3 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[12px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
               />
             </div>
           </div>
 
-          {/* Conversations List Items */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+          {/* Conversations List */}
+          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
             {isLoadingHistory && historyList.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[var(--ink-muted)] flex items-center justify-center gap-2">
+              <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--accent-ochre)]" />
-                <span>Loading chats...</span>
+                <span>Loading dialogues...</span>
               </div>
             ) : filteredHistory.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[var(--ink-muted)] space-y-2.5">
-                <p>No conversations found.</p>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(true)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border-subtle)] hover:border-[var(--accent-ochre)] text-[var(--ink-primary)] cursor-pointer hover:bg-[var(--accent-ochre-dim)] transition"
-                >
+              <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex flex-col items-center gap-2">
+                <p>No dialogues found.</p>
+                <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(true)}>
                   Create one now
-                </button>
+                </Button>
               </div>
             ) : (
-              filteredHistory.map((conv, idx) => {
+              filteredHistory.map((conv) => {
                 const isSelected = activeConversation?.id === conv.id;
                 const lastMsg = conv.messages[conv.messages.length - 1];
-                const palette = AVATAR_PALETTES[idx % AVATAR_PALETTES.length];
 
                 return (
                   <div
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
-                    className={`relative p-3 rounded-xl cursor-pointer transition-colors flex items-start gap-3 select-none group ${
+                    className={`relative p-3 rounded-[8px] cursor-pointer transition-colors flex items-start gap-3 select-none group border ${
                       isSelected
-                        ? 'bg-[var(--accent-ochre-dim)] shadow-sm'
-                        : 'hover:bg-[var(--accent-ochre-dim)]/45'
+                        ? 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)]'
+                        : 'bg-[var(--bg-surface)] border-transparent hover:bg-[var(--bg-canvas)]'
                     }`}
                   >
-                    {/* Vibrant Initial Avatar */}
-                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${palette} font-arabic font-bold flex items-center justify-center text-base shrink-0 shadow-xs border transition-transform ${
-                      isSelected ? 'scale-105' : ''
+                    {/* Speaker initial pill */}
+                    <div className={`w-8 h-8 rounded-[8px] font-arabic font-bold flex items-center justify-center text-sm shrink-0 border ${
+                      isSelected
+                        ? 'bg-[var(--accent-ochre)] text-white border-transparent'
+                        : 'bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] border-[var(--border-accent)]'
                     }`}>
                       {conv.speakers[0] ? conv.speakers[0].charAt(0) : 'ح'}
                     </div>
 
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {/* Title */}
-                      <h3 className={`font-semibold text-[13px] truncate pr-6 ${
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <h3 className={`font-semibold text-[13px] leading-[18px] truncate pr-5 ${
                         isSelected ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-primary)]'
                       }`}>
                         {conv.title}
                       </h3>
 
-                      {/* Arabic preview from last message */}
                       {lastMsg && (
-                        <p
-                          dir="rtl"
-                          className="font-arabic text-[13px] text-[var(--ink-secondary)] truncate leading-snug"
-                        >
+                        <p dir="rtl" className="font-arabic text-[13px] leading-[18px] text-[var(--ink-secondary)] truncate">
                           {lastMsg.arabic}
                         </p>
                       )}
 
-                      {/* Meta: speakers, difficulty & length */}
-                      <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-muted)]">
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-secondary)] pt-0.5">
                         <span className="truncate">{conv.speakers.join(', ')}</span>
-                        <span className="shrink-0 flex items-center gap-1.5">
-                          <span className="uppercase tracking-wider font-bold text-[9px] text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-1.5 py-0.5 rounded-md border border-[var(--accent-ochre)]/25">
-                            {conv.difficulty.slice(0, 3)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            {conv.messages.length} lines
-                          </span>
-                        </span>
+                        <span className="shrink-0">{conv.messages.length} lines</span>
                       </div>
                     </div>
 
-                    {/* Quick Delete button on hover */}
+                    {/* Delete hover button */}
                     <button
                       type="button"
                       onClick={(e) => handleDelete(conv.id, e)}
-                      className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 p-1 text-[var(--ink-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
+                      className="absolute top-2.5 right-2 opacity-0 group-hover:opacity-100 p-1 text-[var(--ink-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-[6px] transition"
                       title="Delete chat"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -479,7 +437,7 @@ export const ConversationPracticeView: React.FC = () => {
           </div>
         </aside>
 
-        {/* Backdrop for mobile drawer */}
+        {/* Mobile drawer backdrop */}
         {isMobileSidebarOpen && (
           <div
             onClick={() => setIsMobileSidebarOpen(false)}
@@ -487,321 +445,260 @@ export const ConversationPracticeView: React.FC = () => {
           />
         )}
 
-        {/* Right Area: Interactive Chat Feed with Ambient Texture */}
-        <main className="flex-1 flex flex-col bg-[var(--bg-primary)]/80 relative overflow-hidden min-w-0">
-          
-          {/* Ambient subtle background grid for chat atmosphere */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.035] dark:opacity-[0.06]"
-            style={{
-              backgroundImage: `radial-gradient(var(--ink-primary) 1px, transparent 1px)`,
-              backgroundSize: '24px 24px',
-            }}
-          />
-
+        {/* Right Area: Interactive Chat Feed */}
+        <main className="flex-1 flex flex-col bg-[var(--bg-canvas)] relative overflow-hidden min-w-0">
           {/* Active Delete Confirmation Bar */}
           {activeConversation && confirmDeleteId === activeConversation.id && (
-            <div className="flex items-center justify-between p-2.5 px-5 bg-red-500/10 border-b border-red-500/20 text-xs text-red-300 animate-fadeIn shrink-0 z-10">
+            <div className="flex items-center justify-between p-3 px-6 bg-red-500/10 border-b border-red-500/20 text-[12px] text-red-400 shrink-0 z-10 animate-fadeIn">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-                <span>Delete this conversation from your saved history?</span>
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <span>Delete this dialogue from your saved history?</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setConfirmDeleteId(null)}
-                  className="px-2.5 py-1 rounded-md bg-[var(--bg-surface)] text-[var(--ink-secondary)] cursor-pointer text-xs border border-[var(--border-subtle)]"
-                >
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>
                   Cancel
-                </button>
+                </Button>
                 <button
                   onClick={() => handleDelete(activeConversation.id)}
-                  className="px-3 py-1 rounded-md bg-red-600 text-white font-semibold cursor-pointer hover:bg-red-700 text-xs"
+                  className="px-3 py-1.5 rounded-[8px] bg-red-600 text-white font-semibold text-[12px] hover:bg-red-700 transition cursor-pointer"
                 >
-                  Confirm Delete
+                  Delete
                 </button>
               </div>
             </div>
           )}
 
           {activeConversation ? (
-            <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-              {/* Scrollable Chat Feed Area */}
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                <div className="max-w-4xl mx-auto w-full space-y-4">
-                
-                {/* Topic context pill */}
-                <div className="text-center py-1">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] text-[var(--ink-muted)] shadow-xs">
-                    <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
-                    Scenario: <strong className="text-[var(--ink-primary)] font-semibold">{activeConversation.topic}</strong>
-                  </span>
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+              {/* Scrollable Feed */}
+              <div className="flex-1 p-3 sm:p-8 overflow-y-auto">
+                <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
+                  {/* Topic context banner */}
+                  <div className="flex justify-center py-1">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[12px] text-[var(--ink-secondary)] shadow-2xs">
+                      <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
+                      <span>Scenario: <strong className="text-[var(--ink-primary)] font-semibold">{activeConversation.topic}</strong></span>
+                    </span>
+                  </div>
 
-                {/* Message Bubbles */}
-                {activeConversation.messages.map((msg, idx) => {
-                  const speakerIndex = activeConversation.speakers.indexOf(msg.speakerName);
-                  const isFirstSpeaker = speakerIndex <= 0;
-                  const style = SPEAKER_STYLES[(speakerIndex >= 0 ? speakerIndex : idx) % SPEAKER_STYLES.length];
-                  const isExpanded = expandedMessageId === msg.id;
-                  const breakdownWords = msg.breakdown || [];
-                  const isBreakdownOpen = !!expandedBreakdownIds[msg.id];
-                  const visibleBreakdownWords = isBreakdownOpen
-                    ? breakdownWords
-                    : breakdownWords.slice(0, BREAKDOWN_PREVIEW_COUNT);
-                  const hasMoreBreakdown = breakdownWords.length > BREAKDOWN_PREVIEW_COUNT;
+                  {/* Message Bubbles */}
+                  {activeConversation.messages.map((msg, idx) => {
+                    const speakerIndex = activeConversation.speakers.indexOf(msg.speakerName);
+                    const isFirstSpeaker = speakerIndex <= 0;
+                    const isExpanded = expandedMessageId === msg.id;
+                    const breakdownWords = msg.breakdown || [];
+                    const isBreakdownOpen = !!expandedBreakdownIds[msg.id];
+                    const visibleBreakdownWords = isBreakdownOpen
+                      ? breakdownWords
+                      : breakdownWords.slice(0, BREAKDOWN_PREVIEW_COUNT);
+                    const hasMoreBreakdown = breakdownWords.length > BREAKDOWN_PREVIEW_COUNT;
 
-                  return (
-                    <div
-                      key={msg.id || idx}
-                      className={`flex flex-col ${isFirstSpeaker ? 'items-start' : 'items-end'} space-y-1`}
-                    >
-                      {/* Speaker Badge */}
-                      <div className="flex items-center gap-1.5 px-1 font-arabic">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${style.badge}`}>
-                          {msg.speakerName}
+                    return (
+                      <div
+                        key={msg.id || idx}
+                        className={`flex flex-col ${isFirstSpeaker ? 'items-start' : 'items-end'} gap-1 w-full`}
+                      >
+                        {/* Speaker Name Tag */}
+                        <div className="flex items-center gap-1.5 px-1">
+                          <span className="text-[11px] font-semibold text-[var(--ink-secondary)]">
+                            {msg.speakerName}
+                          </span>
                           {msg.speakerRole && (
-                            <span className="text-[10px] opacity-75 font-normal">({msg.speakerRole})</span>
+                            <span className="text-[10px] text-[var(--ink-muted)]">
+                              ({msg.speakerRole})
+                            </span>
                           )}
-                        </span>
-                      </div>
+                        </div>
 
-                      {/* Interactive Chat Bubble */}
-                      <div className="relative group chat-bubble-container max-w-[90%] sm:max-w-[76%]">
-                        <div
-                          onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
-                          className={`p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 select-none ${style.bubble} ${
-                            isFirstSpeaker ? 'rounded-tl-xs' : 'rounded-tr-xs'
-                          }`}
-                        >
-                          {/* Arabic Spoken Message */}
-                          <div className="flex items-start justify-between gap-3">
-                            <p
-                              dir="rtl"
-                              className="font-arabic text-xl sm:text-2xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right flex-1"
-                            >
-                              {msg.arabic}
-                            </p>
+                        {/* Chat Bubble Container */}
+                        <div className="relative group chat-bubble-container max-w-[92%] sm:max-w-[80%]">
+                          <div
+                            onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
+                            className={`p-4 sm:p-5 rounded-[12px] cursor-pointer transition-all border shadow-2xs select-none ${
+                              isFirstSpeaker
+                                ? 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/50'
+                                : 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)] hover:border-[var(--accent-ochre)]'
+                            }`}
+                          >
+                            {/* Arabic Spoken Message */}
+                            <div className="flex items-start justify-between gap-4">
+                              <p
+                                dir="rtl"
+                                className="font-arabic text-xl sm:text-2xl font-semibold text-[var(--ink-primary)] leading-[170%] text-right flex-1 select-text"
+                              >
+                                {msg.arabic}
+                              </p>
 
-                            {/* Audio Listen Button with subtle hover glow */}
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="shrink-0 opacity-80 group-hover:opacity-100 transition-opacity mt-0.5"
-                            >
-                              <AudioPronounceButton
-                                arabicText={msg.arabic}
-                                size="sm"
-                                title="Listen to authentic spoken pronunciation"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Reveal translation helper hint */}
-                          <div className="flex items-center justify-end gap-1 mt-2 text-[10px] text-[var(--ink-muted)] font-mono">
-                            <span>{isExpanded ? 'Click to hide translation' : 'Click to see translation & transliteration'}</span>
-                            {isExpanded ? <ChevronUp className="w-3 h-3 text-[var(--accent-ochre)]" /> : <ChevronDown className="w-3 h-3" />}
-                          </div>
-
-                          {/* Expanded Transliteration & English Translation */}
-                          {isExpanded && (
-                            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2 animate-fadeIn text-left bg-[var(--bg-surface-elevated)]/60 -mx-1 p-3 rounded-xl border border-[var(--border-subtle)]/70">
-                              {msg.transliteration && (
-                                <div className="space-y-0.5">
-                                  <span className="text-[9px] uppercase tracking-wider font-mono text-[var(--accent-ochre)] font-bold">Pronunciation:</span>
-                                  <p className="text-xs sm:text-sm font-mono text-[var(--ink-secondary)] font-medium">
-                                    {msg.transliteration}
-                                  </p>
-                                </div>
-                              )}
-                              <div className="space-y-0.5">
-                                <span className="text-[9px] uppercase tracking-wider font-mono text-[var(--ink-muted)] font-bold">Meaning:</span>
-                                <p className="text-xs sm:text-sm text-[var(--ink-primary)] italic font-serif">
-                                  "{msg.english}"
-                                </p>
+                              <div onClick={(e) => e.stopPropagation()} className="shrink-0 pt-0.5">
+                                <AudioPronounceButton
+                                  arabicText={msg.arabic}
+                                  size="sm"
+                                  title="Listen to pronunciation"
+                                />
                               </div>
+                            </div>
 
-                              {/* Word-by-word AI breakdown (generated on demand) */}
-                              <div className="space-y-1.5 pt-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[9px] uppercase tracking-wider font-mono text-[var(--accent-ochre)] font-bold">
-                                    Word by word {breakdownWords.length > 0 ? `(${breakdownWords.length})` : ''}
-                                  </span>
-                                  {breakdownWords.length === 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleGenerateBreakdown(msg, e)}
-                                      disabled={breakdownLoadingId === msg.id}
-                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-gradient-to-r from-[#9a5d16] to-[#b87320] hover:from-[#834e10] hover:to-[#9a5d16] text-white shadow-xs transition cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-                                    >
-                                      {breakdownLoadingId === msg.id ? (
-                                        <>
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                          <span>Analyzing words...</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Sparkles className="w-3 h-3" />
-                                          <span>Break down words</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
+                            {/* Translation toggle hint */}
+                            <div className="flex items-center justify-end gap-1 mt-2 text-[11px] text-[var(--ink-secondary)] opacity-80">
+                              <span>{isExpanded ? 'Hide translation' : 'Tap to reveal translation'}</span>
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </div>
 
-                                {breakdownError && breakdownLoadingId !== msg.id && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-red-400">
-                                    <AlertTriangle className="w-3 h-3 shrink-0" />
-                                    <span>{breakdownError}</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleGenerateBreakdown(msg, e)}
-                                      className="underline hover:text-red-300 cursor-pointer"
-                                    >
-                                      Retry
-                                    </button>
+                            {/* Expanded Translation & Word-by-Word Breakdown */}
+                            {isExpanded && (
+                              <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-2.5 animate-fadeIn bg-[var(--bg-canvas)] p-3 rounded-[8px]">
+                                {msg.transliteration && (
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] uppercase font-mono font-semibold text-[var(--accent-ochre)]">
+                                      Pronunciation
+                                    </span>
+                                    <p className="text-[12px] font-mono text-[var(--ink-secondary)]">
+                                      {msg.transliteration}
+                                    </p>
                                   </div>
                                 )}
 
-                                {breakdownWords.length > 0 && (
-                                  <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-surface)]">
-                                    <div className="divide-y divide-[var(--border-subtle)]/70">
-                                      {visibleBreakdownWords.map((w, wIdx) => (
-                                        <div
-                                          key={`${msg.id}_w_${wIdx}`}
-                                          className="flex items-center gap-2.5 px-2.5 py-1.5"
-                                        >
-                                          <span
-                                            dir="rtl"
-                                            className="font-arabic text-base sm:text-lg font-semibold text-[var(--ink-primary)] shrink-0 leading-snug"
-                                          >
-                                            {w.arabic}
-                                          </span>
-                                          <div className="flex-1 min-w-0 text-left">
-                                            {w.transliteration && (
-                                              <span className="font-mono text-[11px] text-[var(--accent-ochre)] leading-tight">
-                                                {w.transliteration}
-                                              </span>
-                                            )}
-                                            <span className="block text-[11px] text-[var(--ink-secondary)] leading-tight">
-                                              {w.english}
-                                              {w.note ? (
-                                                <span className="text-[var(--ink-muted)] font-mono"> · {w.note}</span>
-                                              ) : null}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] uppercase font-mono font-semibold text-[var(--ink-muted)]">
+                                    English Meaning
+                                  </span>
+                                  <p className="text-[13px] text-[var(--ink-primary)] font-normal">
+                                    "{msg.english}"
+                                  </p>
+                                </div>
 
-                                    {hasMoreBreakdown && (
+                                {/* Word-by-word Breakdown */}
+                                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] uppercase font-mono font-semibold text-[var(--accent-ochre)]">
+                                      Word by Word {breakdownWords.length > 0 ? `(${breakdownWords.length})` : ''}
+                                    </span>
+
+                                    {breakdownWords.length === 0 && (
                                       <button
                                         type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setExpandedBreakdownIds((prev) => ({
-                                            ...prev,
-                                            [msg.id]: !prev[msg.id],
-                                          }));
-                                        }}
-                                        className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-[var(--accent-ochre)] hover:bg-[var(--accent-ochre-dim)] border-t border-[var(--border-subtle)]/70 transition cursor-pointer"
+                                        onClick={(e) => handleGenerateBreakdown(msg, e)}
+                                        disabled={breakdownLoadingId === msg.id}
+                                        className="flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[11px] font-semibold bg-[var(--accent-ochre)] hover:opacity-90 text-white transition cursor-pointer disabled:opacity-60"
                                       >
-                                        {isBreakdownOpen ? (
+                                        {breakdownLoadingId === msg.id ? (
                                           <>
-                                            <span>Collapse</span>
-                                            <ChevronUp className="w-3 h-3" />
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                            <span>Analyzing...</span>
                                           </>
                                         ) : (
                                           <>
-                                            <span>Show all {breakdownWords.length} words</span>
-                                            <ChevronDown className="w-3 h-3" />
+                                            <Sparkles className="w-3 h-3" />
+                                            <span>Break down words</span>
                                           </>
                                         )}
                                       </button>
                                     )}
                                   </div>
-                                )}
+
+                                  {/* Breakdown list */}
+                                  {breakdownWords.length > 0 && (
+                                    <div className="flex flex-col gap-1.5 pt-1">
+                                      {visibleBreakdownWords.map((item, bIdx) => (
+                                        <div
+                                          key={bIdx}
+                                          className="p-2 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-[12px]"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span dir="rtl" className="font-arabic font-semibold text-[var(--accent-ochre)] text-[16px]">
+                                              {item.arabic}
+                                            </span>
+                                            <span className="font-mono text-[11px] text-[var(--ink-muted)]">
+                                              ({item.transliteration})
+                                            </span>
+                                          </div>
+                                          <span className="text-[12px] text-[var(--ink-primary)] text-right">
+                                            {item.english}
+                                          </span>
+                                        </div>
+                                      ))}
+
+                                      {hasMoreBreakdown && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedBreakdownIds((prev) => ({
+                                              ...prev,
+                                              [msg.id]: !prev[msg.id],
+                                            }));
+                                          }}
+                                          className="text-[11px] text-[var(--accent-ochre)] hover:underline self-center pt-1 cursor-pointer"
+                                        >
+                                          {isBreakdownOpen
+                                            ? 'Show less'
+                                            : `+ ${breakdownWords.length - BREAKDOWN_PREVIEW_COUNT} more words`}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                   <div ref={chatBottomRef} />
                 </div>
               </div>
-
-              {/* Chat Bottom Helper Banner */}
-              <div className="h-9 px-4 sm:px-6 bg-[var(--bg-surface-elevated)] border-t border-[var(--border-subtle)] text-[11px] text-[var(--ink-muted)] flex items-center justify-between shrink-0 font-mono">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-ochre)]" />
-                  Tap any bubble to reveal phonetics and translation
-                </span>
-                <span>{activeConversation.messages.length} messages</span>
-              </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#9a5d16]/20 to-[#b87320]/20 text-[var(--accent-ochre)] flex items-center justify-center border border-[var(--accent-ochre)]/30 shadow-inner">
-                <MessageSquare className="w-7 h-7" />
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+              <div className="w-12 h-12 rounded-[12px] bg-[var(--bg-accent-tint)] flex items-center justify-center text-[var(--accent-ochre)]">
+                <MessageSquare className="w-6 h-6" />
               </div>
-              <div className="space-y-1.5 max-w-sm">
-                <h3 className="font-bold text-base text-[var(--ink-primary)]">
-                  No conversation active
-                </h3>
-                <p className="text-xs text-[var(--ink-muted)] leading-relaxed">
-                  Select a past dialogue from the left history or create a brand new conversation.
-                </p>
-              </div>
-              <button
-                type="button"
+              <h2 className="text-[18px] font-semibold text-[var(--ink-primary)]">
+                No Dialogue Selected
+              </h2>
+              <p className="text-[13px] text-[var(--ink-secondary)] max-w-sm">
+                Choose a conversation from the left sidebar or create an authentic AI-generated Arabic chat.
+              </p>
+              <Button
+                variant="primary"
+                size="md"
+                leftIcon={<Plus className="w-4 h-4" />}
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-[#9a5d16] to-[#b87320] hover:from-[#834e10] hover:to-[#9a5d16] text-white shadow-sm transition cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>Create New Conversation</span>
-              </button>
+                Create Dialogue
+              </Button>
             </div>
           )}
         </main>
       </div>
 
-      {/* ================= NEW CONVERSATION MODAL ================= */}
+      {/* New Dialogue Creation Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fadeIn max-h-[92vh]">
-            
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg rounded-[12px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-[#9a5d16] to-[#b87320] text-white shadow-xs">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm sm:text-base text-[var(--ink-primary)]">
-                    Create New Dialogue
-                  </h3>
-                  <p className="text-[11px] text-[var(--ink-muted)]">
-                    Natural spoken Arabic with full diacritics
-                  </p>
-                </div>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[var(--accent-ochre)]" />
+                <h3 className="text-[16px] font-semibold text-[var(--ink-primary)]">
+                  Generate New Arabic Dialogue
+                </h3>
               </div>
-
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--ink-primary)] hover:bg-[var(--accent-ochre-dim)] transition cursor-pointer"
+                className="p-1 rounded-[6px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] transition cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Form Content */}
-            <div className="p-6 space-y-4 overflow-y-auto text-xs">
-              
-              {/* Difficulty Level */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex flex-col gap-4 text-[12px]">
+              {/* Difficulty */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-[var(--ink-primary)]">
                   Difficulty Level
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -810,10 +707,10 @@ export const ConversationPracticeView: React.FC = () => {
                       key={d}
                       type="button"
                       onClick={() => setDifficulty(d)}
-                      className={`capitalize py-2 px-3 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                      className={`capitalize py-2 px-3 rounded-[8px] text-[12px] font-semibold border transition cursor-pointer ${
                         difficulty === d
-                          ? 'bg-gradient-to-r from-[#9a5d16] to-[#b87320] text-white border-transparent shadow-xs'
-                          : 'bg-[var(--bg-surface-elevated)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:border-[var(--accent-ochre)]'
+                          ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] shadow-2xs'
+                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                       }`}
                     >
                       {d}
@@ -822,9 +719,9 @@ export const ConversationPracticeView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Predefined Topics */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+              {/* Predefined Scenarios */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-[var(--ink-primary)]">
                   Predefined Scenarios
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -838,10 +735,10 @@ export const ConversationPracticeView: React.FC = () => {
                           setSelectedPreset(pt.id);
                           setCustomTopic('');
                         }}
-                        className={`py-1.5 px-3 rounded-lg text-xs border transition cursor-pointer ${
+                        className={`py-1.5 px-3 rounded-[8px] text-[12px] border transition cursor-pointer ${
                           isSelected
-                            ? 'bg-[var(--accent-ochre-dim)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] font-bold'
-                            : 'bg-[var(--bg-surface-elevated)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:border-[var(--accent-ochre)]'
+                            ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] font-semibold'
+                            : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                         }`}
                       >
                         {pt.label}
@@ -852,43 +749,44 @@ export const ConversationPracticeView: React.FC = () => {
               </div>
 
               {/* Custom Topic Input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
-                  Or Custom Topic / Situation
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-[var(--ink-primary)]">
+                  Or Custom Situation / Topic
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. Asking for gym membership discount or booking a ride..."
                   value={customTopic}
                   onChange={(e) => setCustomTopic(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] focus:ring-1 focus:ring-[var(--accent-ochre)]/30"
+                  className="w-full px-3 py-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
                 />
               </div>
 
-              {/* Number of Speakers & Length */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-[var(--ink-secondary)] flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5" /> Speakers
+              {/* Speakers & Length */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-semibold text-[var(--ink-primary)] flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-[var(--ink-secondary)]" />
+                    <span>Speakers</span>
                   </label>
                   <select
                     value={speakerCount}
                     onChange={(e) => setSpeakerCount(Number(e.target.value))}
-                    className="w-full p-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none"
+                    className="w-full p-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none"
                   >
                     <option value={2}>2 People</option>
                     <option value={3}>3 People</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-semibold text-[var(--ink-primary)]">
                     Dialogue Length
                   </label>
                   <select
                     value={turnsCount}
                     onChange={(e) => setTurnsCount(Number(e.target.value))}
-                    className="w-full p-2 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none"
+                    className="w-full p-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none"
                   >
                     <option value={4}>4 turns (Quick)</option>
                     <option value={6}>6 turns (Standard)</option>
@@ -899,70 +797,47 @@ export const ConversationPracticeView: React.FC = () => {
               </div>
 
               {/* Word Bank Integration Toggle */}
-              <div className="pt-1">
-                <label className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--accent-ochre)]/50 transition">
-                  <input
-                    type="checkbox"
-                    checked={includeKnownWords}
-                    onChange={(e) => setIncludeKnownWords(e.target.checked)}
-                    className="mt-0.5 accent-[#9a5d16] rounded cursor-pointer w-4 h-4"
-                  />
-                  <div className="flex-1">
-                    <span className="block text-xs font-semibold text-[var(--ink-primary)]">
-                      Incorporate words from my Word Bank
-                    </span>
-                    <span className="block text-[11px] text-[var(--ink-muted)] mt-0.5 leading-snug">
-                      {includeKnownWords
-                        ? 'Gemini will intelligently weave in only contextually relevant words to keep the dialogue natural.'
-                        : 'Omit Word Bank. Gemini will create a completely fresh dialogue without existing vocabulary constraints.'}
-                    </span>
-                  </div>
-                </label>
-              </div>
+              <label className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--accent-ochre)]/40 transition select-none">
+                <input
+                  type="checkbox"
+                  checked={includeKnownWords}
+                  onChange={(e) => setIncludeKnownWords(e.target.checked)}
+                  className="mt-0.5 accent-[var(--accent-ochre)] rounded cursor-pointer w-4 h-4"
+                />
+                <div className="flex-1">
+                  <span className="block text-[12px] font-semibold text-[var(--ink-primary)]">
+                    Incorporate words from my Word Bank
+                  </span>
+                  <span className="block text-[11px] text-[var(--ink-secondary)] mt-0.5 leading-snug">
+                    {includeKnownWords
+                      ? 'Gemini will intelligently weave in relevant saved words from your vocabulary.'
+                      : 'Create dialogue without existing vocabulary constraints.'}
+                  </span>
+                </div>
+              </label>
 
               {errorMsg && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                <div className="p-3 rounded-[8px] bg-red-500/10 border border-red-500/20 text-[12px] text-red-500">
                   {errorMsg}
                 </div>
               )}
-
-              <div className="text-[11px] text-[var(--ink-muted)] flex items-start gap-2 bg-[var(--accent-ochre-dim)] p-3 rounded-xl border border-[var(--accent-ochre)]/20 leading-relaxed">
-                <Info className="w-4 h-4 shrink-0 text-[var(--accent-ochre)] mt-0.5" />
-                <span>
-                  {includeKnownWords
-                    ? 'Gemini 3.5 Flash Lite selectively integrates relevant known words into natural spoken dialogue with tashkeel.'
-                    : 'Gemini 3.5 Flash Lite will generate natural spoken dialogue with tashkeel without Word Bank constraints.'}
-                </span>
-              </div>
             </div>
 
-            {/* Modal Actions Footer */}
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer hover:bg-[var(--bg-surface)] transition"
-              >
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] shrink-0">
+              <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-[#9a5d16] to-[#b87320] hover:from-[#834e10] hover:to-[#9a5d16] text-white shadow-sm transition cursor-pointer disabled:opacity-50"
+                isLoading={isGenerating}
+                leftIcon={<Sparkles className="w-4 h-4" />}
               >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate Dialogue</span>
-                  </>
-                )}
-              </button>
+                {isGenerating ? 'Generating...' : 'Generate Dialogue'}
+              </Button>
             </div>
           </div>
         </div>

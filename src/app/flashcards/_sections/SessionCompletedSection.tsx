@@ -1,0 +1,88 @@
+'use client';
+
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { RotateCw, Library, Home } from 'lucide-react';
+import { Panel } from '@/components/ui/Panel';
+import { ArabicText } from '@/components/ui/ArabicText';
+import { Button } from '@/components/ui/Button';
+
+interface SessionCompletedSectionProps {
+  studiedCount: number;
+  totalCards: number;
+  isPracticeMode?: boolean;
+  practiceDeckLabel?: string;
+  onRestart: () => void;
+}
+
+export const SessionCompletedSection: React.FC<SessionCompletedSectionProps> = ({
+  studiedCount,
+  totalCards,
+  isPracticeMode = false,
+  practiceDeckLabel,
+  onRestart,
+}) => {
+  const router = useRouter();
+
+  return (
+    <Panel
+      padding="lg"
+      className="max-w-2xl mx-auto flex flex-col items-center text-center gap-6 py-12 animate-fadeIn bg-[var(--bg-surface)]"
+    >
+      <div className="flex flex-col items-center gap-2">
+        <ArabicText
+          size="hero"
+          color="accent"
+          weight="bold"
+          align="center"
+          className="font-arabic text-4xl sm:text-5xl"
+        >
+          أَحْسَنْتَ ! مُمْتَاز
+        </ArabicText>
+
+        <h2 className="text-[26px] sm:text-[28px] font-semibold text-[var(--ink-primary)]">
+          {isPracticeMode ? 'Practice Session Finished!' : 'Review Session Complete!'}
+        </h2>
+
+        <p className="text-[14px] leading-[21px] text-[var(--ink-secondary)] max-w-md">
+          {isPracticeMode
+            ? `You completed ${studiedCount} cards in casual practice mode without affecting your learning schedule.`
+            : `You reviewed ${studiedCount} out of ${totalCards} scheduled cards. Your spaced repetition intervals have been saved!`}
+        </p>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+        <Button
+          variant="primary"
+          size="md"
+          leftIcon={<RotateCw className="w-4 h-4" />}
+          onClick={onRestart}
+        >
+          Practice Again
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="md"
+          leftIcon={<Library className="w-4 h-4" />}
+          onClick={() => {
+            try { sessionStorage.removeItem('fasih_practice_deck'); } catch (_) {}
+            router.push('/library');
+          }}
+        >
+          View Word Bank
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="md"
+          leftIcon={<Home className="w-4 h-4" />}
+          onClick={() => router.push('/')}
+        >
+          Dashboard
+        </Button>
+      </div>
+    </Panel>
+  );
+};

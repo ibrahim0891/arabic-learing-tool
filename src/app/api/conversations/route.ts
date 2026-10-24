@@ -15,7 +15,7 @@ function cleanJsonOutput(text: string): string {
 export async function GET() {
   try {
     const list = await dataStore.getConversations();
-    return NextResponse.json({ conversations: list });
+    return NextResponse.json({ conversations: list, sessions: list });
   } catch (error: any) {
     console.error('Error fetching conversations:', error);
     return NextResponse.json({ error: error?.message || 'Failed to fetch conversations' }, { status: 500 });
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       topic = 'Meeting at a cafe',
       difficulty = 'beginner',
       speakerCount = 2,
-      turns = 6, // number of messages
+      turns = body.turnsCount || 6,
       includeKnownWords = true,
     } = body;
 
@@ -173,6 +173,7 @@ CRITICAL RULES:
     return NextResponse.json({
       success: true,
       conversation: saved,
+      session: saved,
     });
   } catch (error: any) {
     console.error('Error generating conversation:', error);

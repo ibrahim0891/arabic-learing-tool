@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { VocabularyLibraryView } from '@/components/VocabularyLibraryView';
+import { LibraryWorkspace } from './_sections/LibraryWorkspace';
 import { useStats } from '@/context/StatsContext';
 
 export default function LibraryPage() {
   const { refreshStats } = useStats();
 
   return (
-    <VocabularyLibraryView
+    <LibraryWorkspace
       onWordCountChange={() => refreshStats()}
     />
   );
