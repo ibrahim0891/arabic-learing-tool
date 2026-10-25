@@ -59,7 +59,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 
         {/* Arabic script mark */}
         <span className="font-arabic text-[18px] sm:text-[20px] leading-tight text-[var(--accent-ochre)] font-bold text-right select-none">
-          فَصِيح
+          المُعَلِّم
         </span>
       </div>
     </header>

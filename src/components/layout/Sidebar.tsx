@@ -69,18 +69,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {/* Brand mark */}
             <div className="w-[42px] h-[44px] rounded-[10px] bg-[var(--bg-accent-tint)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <span className="font-arabic text-[27px] leading-[45px] text-[var(--accent-ochre)] font-normal">
-                ف
+              <span className="font-arabic text-[27px] leading-[45px] text-[var(--accent-ochre)] font-semibold">
+                م
               </span>
             </div>
 
             {/* Brand label */}
             <div className="flex flex-col justify-center">
-              <span className="font-sans text-[22px] leading-[32px] font-semibold text-[var(--ink-primary)] tracking-tight">
-                Fasīh
-              </span>
-              <span className="font-sans text-[9px] font-semibold tracking-wider text-[var(--ink-secondary)] uppercase">
-                Your Arabic Workspace
+              <span className="font-sans text-[20px] leading-[26px] font-bold text-[var(--ink-primary)] tracking-tight">
+                Al-Muʿallim
               </span>
             </div>
           </Link>

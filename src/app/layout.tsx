@@ -4,8 +4,8 @@ import { StatsProvider } from '@/context/StatsContext';
 import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Fasīh (فَصِيح) - AI-Powered Arabic Vocabulary Tutor',
-  description: 'Master Arabic vocabulary with AI-generated situational word sets, SM-2 spaced repetition flashcards, and interactive tests.',
+  title: 'Al-Muʿallim (المُعَلِّم) - AI-Powered Arabic Language Tutor',
+  description: 'Master Arabic vocabulary and conversation with Al-Muʿallim: AI-generated situational word sets, SM-2 spaced repetition flashcards, and interactive dialogues.',
 };
 
 export default function RootLayout({

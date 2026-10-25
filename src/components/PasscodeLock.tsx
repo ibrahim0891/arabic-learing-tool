@@ -58,7 +58,7 @@ export const PasscodeLock: React.FC<PasscodeLockProps> = ({ onUnlocked }) => {
       <div className="w-full max-w-md p-8 sm:p-10 rounded-3xl bg-(--bg-surface) border border-(--border-subtle) shadow-2xl space-y-6 text-center">
         {/* Brand Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl bg-(--accent-ochre) text-[#121316] font-bold flex items-center justify-center text-3xl font-arabic shadow-md">
-          ف
+          م
         </div>
 
         <div className="space-y-2">
@@ -66,7 +66,7 @@ export const PasscodeLock: React.FC<PasscodeLockProps> = ({ onUnlocked }) => {
             <Lock className="w-3.5 h-3.5" /> Private App
           </div>
           <h1 className="editorial-title text-2xl sm:text-3xl font-semibold text-(--ink-primary)">
-            Fasīh • <span className="font-arabic font-normal text-2xl text-(--accent-ochre)">فَصِيح</span>
+            Al-Muʿallim • <span className="font-arabic font-normal text-2xl text-(--accent-ochre)">المُعَلِّم</span>
           </h1>
           <p className="text-xs sm:text-sm text-(--ink-secondary) leading-relaxed max-w-xs mx-auto">
             This Arabic learning workspace is private. Enter your passcode to unlock your accountless dashboard.
@@ -114,7 +114,7 @@ export const PasscodeLock: React.FC<PasscodeLockProps> = ({ onUnlocked }) => {
             rightIcon={<ArrowRight className="w-4 h-4" />}
             className="w-full uppercase tracking-wider text-xs font-semibold py-3.5"
           >
-            Unlock Fasīh
+            Unlock Al-Muʿallim
           </Button>
         </form>
 
