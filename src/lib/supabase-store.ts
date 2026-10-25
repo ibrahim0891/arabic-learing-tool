@@ -9,6 +9,22 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publ
 // Direct Supabase client for API routes
 export const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
 
+export interface PaginatedWordsResult {
+  words: Word[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+  tabCounts: {
+    all: number;
+    new: number;
+    learning: number;
+    struggling: number;
+    mastered: number;
+  };
+}
+
 // Helper to convert Supabase row (snake_case) to DraftWord
 export function mapSupabaseDraftToModel(row: any): DraftWord {
   return {
@@ -350,6 +366,174 @@ export const dataStore = {
     sql += ' ORDER BY dateAdded DESC';
     const rawRows = db.prepare(sql).all(...params) as any[];
     return rawRows.map(mapSupabaseWordToModel);
+  },
+
+  // Get total status counts for the word bank tabs and metrics
+  async getTabCounts(topic?: string, setId?: string): Promise<{ all: number; new: number; learning: number; struggling: number; mastered: number }> {
+    try {
+      let whereSql = ' WHERE 1=1';
+      const params: any[] = [];
+      if (topic && topic !== 'all') {
+        whereSql += ' AND topic = ?';
+        params.push(topic);
+      }
+      if (setId && setId !== 'all') {
+        whereSql += ' AND setId = ?';
+        params.push(setId);
+      }
+
+      const rows = db
+        .prepare(`SELECT COALESCE(memoryStatus, 'new') as status, COUNT(*) as count FROM words ${whereSql} GROUP BY COALESCE(memoryStatus, 'new')`)
+        .all(...params) as { status: string; count: number }[];
+
+      let all = 0;
+      let newCount = 0;
+      let learning = 0;
+      let struggling = 0;
+      let mastered = 0;
+
+      for (const row of rows) {
+        all += row.count;
+        if (row.status === 'mastered') mastered = row.count;
+        else if (row.status === 'learning') learning = row.count;
+        else if (row.status === 'struggling') struggling = row.count;
+        else newCount += row.count;
+      }
+
+      return { all, new: newCount, learning, struggling, mastered };
+    } catch (_) {
+      return { all: 0, new: 0, learning: 0, struggling: 0, mastered: 0 };
+    }
+  },
+
+  // Server-side paginated word fetch with full filter support
+  async getWordsPaginated(params: {
+    query?: string;
+    status?: string;
+    topic?: string;
+    setId?: string;
+    revision?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedWordsResult> {
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(params.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    // 1. Try Supabase
+    try {
+      let countQuery = supabase.from('words').select('*', { count: 'exact', head: true });
+      if (params.status && params.status !== 'all') {
+        countQuery = countQuery.eq('memory_status', params.status);
+      }
+      if (params.topic && params.topic !== 'all') {
+        countQuery = countQuery.eq('topic', params.topic);
+      }
+      if (params.setId && params.setId !== 'all') {
+        countQuery = countQuery.eq('set_id', params.setId);
+      }
+      if (params.revision) {
+        countQuery = countQuery.lte('next_review_date', new Date().toISOString()).neq('memory_status', 'new');
+      }
+      if (params.query) {
+        countQuery = countQuery.or(`arabic.ilike.%${params.query}%,transliteration.ilike.%${params.query}%,english.ilike.%${params.query}%,example_arabic.ilike.%${params.query}%`);
+      }
+
+      const { count: totalCount, error: countErr } = await countQuery;
+
+      if (!countErr && typeof totalCount === 'number') {
+        let dataQuery = supabase.from('words').select('*');
+        if (params.status && params.status !== 'all') {
+          dataQuery = dataQuery.eq('memory_status', params.status);
+        }
+        if (params.topic && params.topic !== 'all') {
+          dataQuery = dataQuery.eq('topic', params.topic);
+        }
+        if (params.setId && params.setId !== 'all') {
+          dataQuery = dataQuery.eq('set_id', params.setId);
+        }
+        if (params.revision) {
+          dataQuery = dataQuery.lte('next_review_date', new Date().toISOString()).neq('memory_status', 'new');
+        }
+        if (params.query) {
+          dataQuery = dataQuery.or(`arabic.ilike.%${params.query}%,transliteration.ilike.%${params.query}%,english.ilike.%${params.query}%,example_arabic.ilike.%${params.query}%`);
+        }
+
+        dataQuery = dataQuery
+          .order('date_added', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        const { data, error: dataErr } = await dataQuery;
+
+        if (!dataErr && data) {
+          const words = data.map(mapSupabaseWordToModel);
+          for (const w of words) {
+            this.hydrateWordFromLocal(w.id, w);
+          }
+
+          const tabCounts = await this.getTabCounts(params.topic, params.setId);
+
+          return {
+            words,
+            total: totalCount,
+            page,
+            limit,
+            totalPages: Math.ceil(totalCount / limit),
+            hasMore: offset + words.length < totalCount,
+            tabCounts,
+          };
+        }
+      }
+    } catch (_) {
+      // Fall through to SQLite
+    }
+
+    // 2. Local SQLite implementation
+    let whereSql = ' WHERE 1=1';
+    const whereParams: any[] = [];
+    if (params.query) {
+      whereSql += ' AND (arabic LIKE ? OR transliteration LIKE ? OR english LIKE ? OR exampleArabic LIKE ?)';
+      const term = `%${params.query}%`;
+      whereParams.push(term, term, term, term);
+    }
+    if (params.status && params.status !== 'all') {
+      whereSql += ' AND memoryStatus = ?';
+      whereParams.push(params.status);
+    }
+    if (params.topic && params.topic !== 'all') {
+      whereSql += ' AND topic = ?';
+      whereParams.push(params.topic);
+    }
+    if (params.setId && params.setId !== 'all') {
+      whereSql += ' AND setId = ?';
+      whereParams.push(params.setId);
+    }
+    if (params.revision) {
+      whereSql += " AND nextReviewDate <= ? AND memoryStatus != 'new'";
+      whereParams.push(new Date().toISOString());
+    }
+
+    const countRow = db.prepare(`SELECT COUNT(*) as count FROM words ${whereSql}`).get(...whereParams) as { count: number };
+    const total = countRow?.count || 0;
+
+    const querySql = `SELECT * FROM words ${whereSql} ORDER BY dateAdded DESC LIMIT ? OFFSET ?`;
+    const rows = db.prepare(querySql).all(...whereParams, limit, offset) as any[];
+    const words = rows.map(mapSupabaseWordToModel);
+    for (const w of words) {
+      this.hydrateWordFromLocal(w.id, w);
+    }
+
+    const tabCounts = await this.getTabCounts(params.topic, params.setId);
+
+    return {
+      words,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: offset + words.length < total,
+      tabCounts,
+    };
   },
 
   // Fetch a single word by id without scanning the whole table.

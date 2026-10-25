@@ -3,7 +3,7 @@ import { dataStore } from '@/lib/supabase-store';
 import { stripHarakat } from '@/lib/srs';
 import { checkWordDuplicate } from '@/lib/duplicate-checker';
 
-// GET /api/words - List and search words with filters
+// GET /api/words - List and search words with filters & optional pagination
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,7 +12,28 @@ export async function GET(req: NextRequest) {
     const topic = searchParams.get('topic') || undefined;
     const setId = searchParams.get('setId') || undefined;
     const revision = searchParams.get('revision') === 'true';
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
 
+    // If page or limit are specified, return paginated result with counts & pagination metadata
+    if (pageParam !== null || limitParam !== null) {
+      const page = Math.max(1, parseInt(pageParam || '1', 10) || 1);
+      const limit = Math.max(1, Math.min(100, parseInt(limitParam || '20', 10) || 20));
+
+      const result = await dataStore.getWordsPaginated({
+        query,
+        status,
+        topic,
+        setId,
+        revision,
+        page,
+        limit,
+      });
+
+      return NextResponse.json(result);
+    }
+
+    // Default backward compatible non-paginated result
     const words = await dataStore.getWords({
       query,
       status,
