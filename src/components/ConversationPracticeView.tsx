@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MessageSquare,
   Sparkles,
@@ -76,6 +77,18 @@ export const ConversationPracticeView: React.FC = () => {
 
   // Chat feed scroll container
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // Escape key + scroll lock for the modal
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsModalOpen(false); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
 
   // Click outside listener to collapse expanded message translation
   useEffect(() => {
@@ -673,44 +686,65 @@ export const ConversationPracticeView: React.FC = () => {
         </main>
       </div>
 
-      {/* New Dialogue Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-lg rounded-[12px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[var(--accent-ochre)]" />
-                <h3 className="text-[16px] font-semibold text-[var(--ink-primary)]">
-                  Generate New Arabic Dialogue
-                </h3>
+      {/* New Dialogue Creation — bottom-sheet portal */}
+      {isModalOpen && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Generate new Arabic dialogue"
+          className="fixed inset-0 z-[9999] flex flex-col justify-end"
+        >
+          {/* Scrim */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+            onClick={() => setIsModalOpen(false)}
+          />
+
+          {/* Sheet */}
+          <div
+            className="relative w-full flex flex-col rounded-t-[24px] bg-[var(--bg-surface)] shadow-2xl animate-slideUp"
+            style={{ maxHeight: '92dvh' }}
+          >
+            {/* Sticky Header */}
+            <div className="shrink-0 flex flex-col items-center px-5 pt-3 pb-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-t-[24px]">
+              <div className="w-10 h-[5px] rounded-full bg-[var(--border-subtle)] mb-3" />
+              <div className="w-full flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--bg-accent-tint)] flex items-center justify-center text-[var(--accent-ochre)] shadow-2xs">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-[16px] font-bold text-[var(--ink-primary)] leading-tight">New Arabic Dialogue</h3>
+                    <span className="text-[11px] text-[var(--ink-secondary)]">Powered by Gemini AI</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-9 h-9 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition cursor-pointer active:scale-95"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-[6px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex flex-col gap-4 text-[12px]">
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 flex flex-col gap-5">
+
               {/* Difficulty */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-[var(--ink-primary)]">
-                  Difficulty Level
-                </label>
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-semibold text-[var(--ink-primary)]">Difficulty Level</span>
                 <div className="grid grid-cols-3 gap-2">
                   {(['beginner', 'intermediate', 'advanced'] as const).map((d) => (
                     <button
                       key={d}
                       type="button"
                       onClick={() => setDifficulty(d)}
-                      className={`capitalize py-2 px-3 rounded-[8px] text-[12px] font-semibold border transition cursor-pointer ${
+                      className={`capitalize py-2.5 px-3 rounded-[8px] text-[12px] font-semibold border transition cursor-pointer ${
                         difficulty === d
-                          ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] shadow-2xs'
-                          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                          ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] ring-1 ring-[var(--accent-ochre)]'
+                          : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--accent-ochre)]/40'
                       }`}
                     >
                       {d}
@@ -720,25 +754,20 @@ export const ConversationPracticeView: React.FC = () => {
               </div>
 
               {/* Predefined Scenarios */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-[var(--ink-primary)]">
-                  Predefined Scenarios
-                </label>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-semibold text-[var(--ink-primary)]">Predefined Scenarios</span>
+                <div className="grid grid-cols-2 gap-2">
                   {PRESET_TOPICS.map((pt) => {
                     const isSelected = selectedPreset === pt.id && !customTopic.trim();
                     return (
                       <button
                         key={pt.id}
                         type="button"
-                        onClick={() => {
-                          setSelectedPreset(pt.id);
-                          setCustomTopic('');
-                        }}
-                        className={`py-1.5 px-3 rounded-[8px] text-[12px] border transition cursor-pointer ${
+                        onClick={() => { setSelectedPreset(pt.id); setCustomTopic(''); }}
+                        className={`py-2.5 px-3 rounded-[8px] text-[12px] border text-left transition cursor-pointer ${
                           isSelected
-                            ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] font-semibold'
-                            : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                            ? 'bg-[var(--bg-accent-tint)] border-[var(--accent-ochre)] text-[var(--accent-ochre)] font-semibold ring-1 ring-[var(--accent-ochre)]'
+                            : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--accent-ochre)]/40'
                         }`}
                       >
                         {pt.label}
@@ -748,45 +777,40 @@ export const ConversationPracticeView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Custom Topic Input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-[var(--ink-primary)]">
-                  Or Custom Situation / Topic
-                </label>
+              {/* Custom Topic */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-semibold text-[var(--ink-primary)]">Or Custom Situation</span>
                 <input
                   type="text"
                   placeholder="e.g. Asking for gym membership discount or booking a ride..."
                   value={customTopic}
                   onChange={(e) => setCustomTopic(e.target.value)}
-                  className="w-full px-3 py-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
+                  className="w-full px-3 py-2.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[13px] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
                 />
               </div>
 
               {/* Speakers & Length */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-[var(--ink-primary)] flex items-center gap-1">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[12px] font-semibold text-[var(--ink-primary)] flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[var(--ink-secondary)]" />
-                    <span>Speakers</span>
-                  </label>
+                    Speakers
+                  </span>
                   <select
                     value={speakerCount}
                     onChange={(e) => setSpeakerCount(Number(e.target.value))}
-                    className="w-full p-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none"
+                    className="w-full p-2.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none focus:border-[var(--accent-ochre)] transition"
                   >
                     <option value={2}>2 People</option>
                     <option value={3}>3 People</option>
                   </select>
                 </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-[var(--ink-primary)]">
-                    Dialogue Length
-                  </label>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[12px] font-semibold text-[var(--ink-primary)]">Dialogue Length</span>
                   <select
                     value={turnsCount}
                     onChange={(e) => setTurnsCount(Number(e.target.value))}
-                    className="w-full p-2 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none"
+                    className="w-full p-2.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none focus:border-[var(--accent-ochre)] transition"
                   >
                     <option value={4}>4 turns (Quick)</option>
                     <option value={6}>6 turns (Standard)</option>
@@ -796,22 +820,24 @@ export const ConversationPracticeView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Word Bank Integration Toggle */}
-              <label className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--accent-ochre)]/40 transition select-none">
+              {/* Word Bank Toggle */}
+              <label className={`flex items-start gap-3 p-3.5 rounded-[10px] border cursor-pointer select-none transition ${
+                includeKnownWords
+                  ? 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)]'
+                  : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/40'
+              }`}>
                 <input
                   type="checkbox"
                   checked={includeKnownWords}
                   onChange={(e) => setIncludeKnownWords(e.target.checked)}
-                  className="mt-0.5 accent-[var(--accent-ochre)] rounded cursor-pointer w-4 h-4"
+                  className="mt-0.5 accent-[var(--accent-ochre)] rounded cursor-pointer w-4 h-4 shrink-0"
                 />
                 <div className="flex-1">
-                  <span className="block text-[12px] font-semibold text-[var(--ink-primary)]">
-                    Incorporate words from my Word Bank
-                  </span>
+                  <span className="block text-[13px] font-semibold text-[var(--ink-primary)]">Weave in my Word Bank</span>
                   <span className="block text-[11px] text-[var(--ink-secondary)] mt-0.5 leading-snug">
                     {includeKnownWords
-                      ? 'Gemini will intelligently weave in relevant saved words from your vocabulary.'
-                      : 'Create dialogue without existing vocabulary constraints.'}
+                      ? 'Gemini will weave in relevant saved words from your vocabulary.'
+                      : 'Generate dialogue without vocabulary constraints.'}
                   </span>
                 </div>
               </label>
@@ -823,24 +849,27 @@ export const ConversationPracticeView: React.FC = () => {
               )}
             </div>
 
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] shrink-0">
-              <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </Button>
+            {/* Pinned Action Bar */}
+            <div className="shrink-0 px-5 py-4 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] shadow-[0_-6px_20px_rgba(0,0,0,0.07)] flex flex-col gap-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <Button
                 variant="primary"
-                size="sm"
+                size="lg"
                 onClick={handleGenerate}
                 disabled={isGenerating}
                 isLoading={isGenerating}
                 leftIcon={<Sparkles className="w-4 h-4" />}
+                className="w-full justify-center font-bold text-[15px] py-3.5"
               >
                 {isGenerating ? 'Generating...' : 'Generate Dialogue'}
               </Button>
+              <div className="flex items-center justify-between text-[11px] text-[var(--ink-muted)] px-0.5">
+                <span>Approx. 10–20 seconds</span>
+                <span className="font-arabic text-[13px] text-[var(--accent-ochre)]">إِنْشَاء حِوَار</span>
+              </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

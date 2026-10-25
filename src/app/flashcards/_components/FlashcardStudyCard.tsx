@@ -43,27 +43,27 @@ export const FlashcardStudyCard: React.FC<FlashcardStudyCardProps> = ({
 
   return (
     <div
-      className="w-full min-h-[440px] sm:min-h-[470px] perspective-1000 cursor-pointer select-none"
+      className="w-full min-h-[310px] xs:min-h-[350px] sm:min-h-[470px] perspective-1000 cursor-pointer select-none touch-manipulation"
       onClick={onFlip}
     >
       <div
-        className={`relative w-full h-full min-h-[440px] sm:min-h-[470px] rounded-[12px] transition-transform duration-500 transform-style-3d ${
+        className={`relative w-full h-full min-h-[310px] xs:min-h-[350px] sm:min-h-[470px] rounded-[12px] transition-transform duration-500 transform-style-3d ${
           isFlipped ? 'rotate-y-180' : ''
         }`}
       >
         {/* ======================= FRONT OF CARD ======================= */}
-        <div className="absolute inset-0 w-full h-full backface-hidden rounded-[12px] p-6 sm:p-8 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xs hover:border-[var(--accent-ochre)]/60 transition-colors">
+        <div className="absolute inset-0 w-full h-full backface-hidden rounded-[12px] p-4 sm:p-8 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xs hover:border-[var(--accent-ochre)]/60 transition-colors">
           {/* Top Bar on Front */}
           <div
-            className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]"
+            className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-[var(--border-subtle)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
-              <Badge variant="ochre" className="uppercase tracking-wider">
+              <Badge variant="ochre" className="uppercase tracking-wider text-[10px] sm:text-[11px]">
                 {partOfSpeech}
               </Badge>
               {word.root && (
-                <span className="text-[11px] font-mono text-[var(--ink-secondary)]">
+                <span className="text-[10px] sm:text-[11px] font-mono text-[var(--ink-secondary)]">
                   Root: {word.root}
                 </span>
               )}
@@ -78,30 +78,33 @@ export const FlashcardStudyCard: React.FC<FlashcardStudyCardProps> = ({
           </div>
 
           {/* Center Content: Big Arabic Text */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-4 sm:py-6">
             <ArabicText
               size="hero"
               color="accent"
               weight="semibold"
               align="center"
-              className="font-arabic text-5xl sm:text-6xl text-[var(--accent-ochre)] select-text"
+              className="font-arabic text-4xl xs:text-5xl sm:text-6xl text-[var(--accent-ochre)] select-text leading-tight"
             >
               {word.arabic}
             </ArabicText>
 
-            <span className="text-[12px] leading-[18px] text-[var(--ink-secondary)] opacity-80 pt-4">
-              Click anywhere or press <kbd className="px-1.5 py-0.5 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] font-mono text-[10px] text-[var(--ink-primary)]">Space</kbd> to flip card
+            <span className="text-[12px] leading-[18px] text-[var(--ink-secondary)] opacity-80 pt-3 sm:pt-4">
+              <span className="sm:hidden">Tap card anywhere to flip</span>
+              <span className="hidden sm:inline">
+                Click anywhere or press <kbd className="px-1.5 py-0.5 rounded-[4px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] font-mono text-[10px] text-[var(--ink-primary)]">Space</kbd> to flip card
+              </span>
             </span>
           </div>
 
           {/* Bottom Bar on Front */}
           <div
-            className="flex items-center justify-between pt-3 border-t border-[var(--border-subtle)]"
+            className="flex items-center justify-between pt-2.5 sm:pt-3 border-t border-[var(--border-subtle)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               {getMemoryBadge()}
-              <span className="text-[11px] leading-[16px] text-[var(--ink-secondary)]">
+              <span className="text-[10px] sm:text-[11px] leading-[16px] text-[var(--ink-secondary)]">
                 {nextDueText}
               </span>
             </div>
@@ -109,7 +112,7 @@ export const FlashcardStudyCard: React.FC<FlashcardStudyCardProps> = ({
             <button
               type="button"
               onClick={onFlip}
-              className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--ink-secondary)] hover:text-[var(--accent-ochre)] transition-colors cursor-pointer bg-transparent border-0"
+              className="flex items-center gap-1.5 text-[11px] sm:text-[12px] font-medium text-[var(--ink-secondary)] hover:text-[var(--accent-ochre)] transition-colors cursor-pointer bg-transparent border-0"
             >
               <RotateCw className="w-3.5 h-3.5" />
               <span>Show answer</span>
@@ -118,10 +121,10 @@ export const FlashcardStudyCard: React.FC<FlashcardStudyCardProps> = ({
         </div>
 
         {/* ======================= BACK OF CARD ======================= */}
-        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-[12px] p-6 sm:p-8 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-accent)] shadow-xs overflow-y-auto">
+        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-[12px] p-4 sm:p-8 flex flex-col justify-between bg-[var(--bg-surface)] border border-[var(--border-accent)] shadow-xs overflow-y-auto">
           {/* Top Bar on Back */}
           <div
-            className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] shrink-0"
+            className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-[var(--border-subtle)] shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">

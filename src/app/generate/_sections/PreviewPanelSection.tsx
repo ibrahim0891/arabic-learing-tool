@@ -142,7 +142,7 @@ export const PreviewPanelSection: React.FC<PreviewPanelSectionProps> = ({
 
   /* ------------------------------ Default Preview State (Figma Specs) ------------------------------ */
   return (
-    <div className="flex flex-col gap-4 animate-fadeIn">
+    <div className="hidden lg:flex flex-col gap-4 animate-fadeIn">
       <Panel padding="lg" className="flex flex-col gap-5 bg-[var(--bg-surface)]">
         {/* Preview Heading */}
         <div className="flex items-center justify-between">

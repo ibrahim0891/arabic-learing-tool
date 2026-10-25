@@ -20,16 +20,16 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   onOpenAdd,
 }) => {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Badge variant="ochre">
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
               <BookOpen className="w-3 h-3 text-[var(--accent-ochre)]" />
               مَكْتَبَةُ المُفْرَدَاتِ • WORD BANK
             </span>
           </Badge>
-          <span className="text-[12px] text-[var(--ink-muted)]">
+          <span className="text-[12px] text-[var(--ink-muted)] whitespace-nowrap">
             {totalWords} saved {totalWords === 1 ? 'word' : 'words'}
           </span>
         </div>

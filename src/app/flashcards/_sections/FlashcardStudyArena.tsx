@@ -314,9 +314,59 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
   }
 
   return (
-    <div className="p-6 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-6 animate-fadeIn">
-      {/* 1. Page Heading Area */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="p-3.5 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-4 sm:gap-6 animate-fadeIn">
+      {/* ==================== 1. MOBILE STUDY HEADER (< sm) ==================== */}
+      <div className="sm:hidden flex flex-col gap-2.5 pb-1">
+        {/* Top Control Bar */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Exit / End Session */}
+          <button
+            type="button"
+            onClick={handleFinishEarly}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[12px] font-medium text-[var(--ink-secondary)] active:scale-95 shadow-2xs hover:text-[var(--ink-primary)] transition-all cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>End session</span>
+          </button>
+
+          {/* Deck Title & Current Counter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-semibold text-[var(--ink-primary)] max-w-[140px] truncate">
+              {isPracticeMode ? practiceDeckLabel || 'Practice' : 'Saved Words'}
+            </span>
+            <span className="text-[11px] font-mono font-medium text-[var(--accent-ochre)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2 py-0.5 rounded-full shadow-2xs">
+              {currentIndex + 1} / {words.length}
+            </span>
+          </div>
+
+          {/* Shuffle Icon Button */}
+          <button
+            type="button"
+            onClick={handleShuffle}
+            title="Shuffle deck"
+            className="p-1.5 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] active:scale-95 shadow-2xs hover:text-[var(--ink-primary)] transition-all cursor-pointer"
+          >
+            <Shuffle className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Linear Progress Bar */}
+        <div className="w-full bg-[var(--border-subtle)]/70 h-1.5 rounded-full overflow-hidden">
+          <div
+            className="bg-[var(--accent-ochre)] h-full transition-all duration-300 rounded-full"
+            style={{ width: `${Math.round(((currentIndex + 1) / words.length) * 100)}%` }}
+          />
+        </div>
+
+        {/* Sub-label */}
+        <div className="flex items-center justify-between text-[11px] text-[var(--ink-secondary)] px-0.5 font-mono">
+          <span>Arabic → English</span>
+          <span>{Math.max(0, words.length - (currentIndex + 1))} remaining</span>
+        </div>
+      </div>
+
+      {/* ==================== 2. DESKTOP PAGE HEADING AREA (>= sm) ==================== */}
+      <div className="hidden sm:flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-[26px] sm:text-[28px] leading-[38px] sm:leading-[42px] font-semibold text-[var(--ink-primary)] tracking-tight">
             Practice Flashcards
@@ -335,8 +385,8 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
         </Button>
       </div>
 
-      {/* 2. Controls & Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+      {/* Desktop Controls & Filter Bar (>= sm) */}
+      <div className="hidden sm:flex flex-row items-center justify-between gap-3 pt-1">
         <div className="flex items-center gap-3">
           <span className="text-[13px] font-semibold text-[var(--ink-primary)]">
             {isPracticeMode ? practiceDeckLabel || 'Practice Deck' : 'Saved Words'}
@@ -359,12 +409,12 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
         </Button>
       </div>
 
-      {/* 3. Main Two-Column Study Arena */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* ==================== 3. MAIN STUDY ARENA ==================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
         {/* Left Column: Flashcard & Controls (8 of 12 columns) */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          {/* Card Counter Header */}
-          <div className="flex items-center justify-between text-[12px] leading-[18px] text-[var(--ink-secondary)] px-1">
+        <div className="lg:col-span-8 flex flex-col gap-3 sm:gap-4">
+          {/* Card Counter Header (Desktop only, mobile has it in top bar) */}
+          <div className="hidden sm:flex items-center justify-between text-[12px] leading-[18px] text-[var(--ink-secondary)] px-1">
             <span>
               Card {currentIndex + 1} of {words.length}
             </span>
@@ -382,24 +432,46 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
           />
 
           {/* Navigation & SRS Rating Controls */}
-          <SRSActionButtons
-            isFlipped={isFlipped}
-            onFlip={() => setIsFlipped((prev) => !prev)}
-            onPrev={handlePrevCard}
-            onNext={handleNextCard}
-            canPrev={currentIndex > 0}
-            onRate={handleCardRating}
-            isSubmitting={isSubmitting}
-            word={currentWord}
-            isPracticeMode={isPracticeMode}
-          />
+          <div className="pt-1">
+            <SRSActionButtons
+              isFlipped={isFlipped}
+              onFlip={() => setIsFlipped((prev) => !prev)}
+              onPrev={handlePrevCard}
+              onNext={handleNextCard}
+              canPrev={currentIndex > 0}
+              onRate={handleCardRating}
+              isSubmitting={isSubmitting}
+              word={currentWord}
+              isPracticeMode={isPracticeMode}
+            />
+          </div>
 
-          {/* Learning Tip Card */}
-          <RecallTipCard />
+          {/* Learning Tip Card (Hidden on mobile to preserve vertical space) */}
+          <div className="hidden sm:block">
+            <RecallTipCard />
+          </div>
+
+          {/* Mobile collapsible queue view */}
+          <details className="lg:hidden mt-2 group rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
+            <summary className="text-[12px] font-medium text-[var(--ink-secondary)] cursor-pointer px-4 py-2.5 flex items-center justify-between select-none hover:text-[var(--ink-primary)] transition-colors list-none">
+              <span>Deck Queue ({words.length} cards)</span>
+              <span className="text-[11px] text-[var(--accent-ochre)] font-mono group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="border-t border-[var(--border-subtle)]">
+              <FlashcardDeckQueue
+                words={words}
+                currentIndex={currentIndex}
+                onSelectIndex={(idx) => {
+                  setCurrentIndex(idx);
+                  setIsFlipped(false);
+                }}
+              />
+            </div>
+          </details>
         </div>
 
-        {/* Right Column: Widgets Stack (4 of 12 columns) */}
-        <div className="lg:col-span-4 flex flex-col gap-5">
+        {/* Right Column: Widgets Stack (4 of 12 columns, desktop only) */}
+        <div className="hidden lg:flex lg:col-span-4 flex-col gap-5">
           {/* Widget 1: Session Progress */}
           <SessionProgressCard
             currentIndex={currentIndex + 1}

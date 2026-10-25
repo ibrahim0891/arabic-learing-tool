@@ -321,6 +321,15 @@ input::placeholder {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Custom Arabic Virtual Keyboard Styling */
 .arabic-custom-keyboard.hg-theme-default {
   background-color: transparent !important;
