@@ -14,7 +14,7 @@ export const DailyArabicSection: React.FC = () => {
       try {
         const cached = localStorage.getItem('fasih_daily_sentence');
         if (cached) return JSON.parse(cached);
-      } catch (_) {}
+      } catch (_) { }
     }
     return null;
   });
@@ -30,7 +30,7 @@ export const DailyArabicSection: React.FC = () => {
             setDailySentence(fresh);
             try {
               localStorage.setItem('fasih_daily_sentence', JSON.stringify(fresh));
-            } catch (_) {}
+            } catch (_) { }
           }
         }
       } catch (err) {
@@ -60,7 +60,7 @@ export const DailyArabicSection: React.FC = () => {
             <Sparkles className="w-3 h-3 text-[var(--accent-ochre)]" />
             <span>Daily Arabic</span>
           </Badge>
-          <span className="text-[12px] leading-[18px] text-[var(--ink-secondary)] font-normal">
+          <span className="text-[12px] hidden md:block leading-[18px] text-[var(--ink-secondary)] font-normal">
             Inspiration of the Day
           </span>
         </div>

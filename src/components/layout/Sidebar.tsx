@@ -13,18 +13,25 @@ import {
   Settings,
   Sun,
   Moon,
+  Monitor,
+  Leaf,
   LogOut,
   X
 } from 'lucide-react';
 import { SidebarNavItem } from './SidebarNavItem';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useStats } from '@/context/StatsContext';
+import { ThemeMode, ThemePalette } from '@/context/ThemeContext';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
   onLockApp?: () => void;
   theme?: 'dark' | 'light';
+  themeMode?: ThemeMode;
+  palette?: ThemePalette;
   onToggleTheme?: () => void;
+  onSelectTheme?: (mode: ThemeMode) => void;
+  onTogglePalette?: () => void;
   className?: string;
 }
 
@@ -32,7 +39,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onLockApp,
   theme = 'light',
+  themeMode = 'system',
+  palette = 'classic',
   onToggleTheme,
+  onSelectTheme,
+  onTogglePalette,
   className = '',
 }) => {
   const pathname = usePathname();
@@ -184,17 +195,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Preferences</span>
           </Link>
 
-          <div className="flex items-center gap-1">
-            {onToggleTheme && (
+          <div className="flex items-center gap-1.5">
+            {/* Palette toggle: Classic Ochre vs Grass Green */}
+            {onTogglePalette && (
               <button
-                onClick={onToggleTheme}
-                className="p-1.5 rounded-[6px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] transition-colors cursor-pointer"
-                title="Toggle Theme"
-                aria-label="Toggle theme"
+                type="button"
+                onClick={onTogglePalette}
+                className={`p-1.5 rounded-[6px] transition-all cursor-pointer ${
+                  palette === 'grass'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 shadow-2xs'
+                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] border border-transparent'
+                }`}
+                title={palette === 'grass' ? 'Grass Green active (Click for Classic)' : 'Switch to Grass Green theme'}
+                aria-label="Toggle Grass Green theme"
               >
-                {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-[var(--accent-ochre)]" /> : <Moon className="w-3.5 h-3.5" />}
+                <Leaf className="w-3.5 h-3.5" />
               </button>
             )}
+
+            {/* Theme mode options: Light, Dark, System OS Sync */}
+            <div className="flex items-center p-0.5 rounded-[7px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => (onSelectTheme ? onSelectTheme('light') : onToggleTheme?.())}
+                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
+                  (themeMode ? themeMode === 'light' : theme === 'light')
+                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
+                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                }`}
+                title="Light mode"
+                aria-label="Light mode"
+              >
+                <Sun className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => (onSelectTheme ? onSelectTheme('dark') : onToggleTheme?.())}
+                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
+                  (themeMode ? themeMode === 'dark' : theme === 'dark')
+                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
+                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                }`}
+                title="Dark mode"
+                aria-label="Dark mode"
+              >
+                <Moon className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => (onSelectTheme ? onSelectTheme('system') : onToggleTheme?.())}
+                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
+                  themeMode === 'system'
+                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
+                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                }`}
+                title="Sync with OS theme automatically"
+                aria-label="Sync with OS theme automatically"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             {onLockApp && (
               <button

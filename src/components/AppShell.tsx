@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useTheme } from '@/context/ThemeContext';
 import { useStats } from '@/context/StatsContext';
 import { PasscodeLock } from '@/components/PasscodeLock';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -13,7 +14,14 @@ const APP_PASSCODE = 'kazimuhammadibrahim5033';
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const { refreshStats } = useStats();
-  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const {
+    themeMode,
+    palette,
+    resolvedTheme,
+    setThemeMode,
+    toggleTheme,
+    togglePalette,
+  } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -26,11 +34,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       if (stored === APP_PASSCODE) {
         setIsAuthenticated(true);
         initApp();
-      }
-      const savedTheme = localStorage.getItem('fasih_theme') as 'dark' | 'light' | null;
-      if (savedTheme) {
-        setTheme(savedTheme);
-        document.documentElement.setAttribute('data-theme', savedTheme);
       }
     } catch (_) {}
     setIsCheckingAuth(false);
@@ -63,15 +66,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
-    try {
-      localStorage.setItem('fasih_theme', nextTheme);
-    } catch (_) {}
   };
 
   const handleLock = () => {
@@ -130,8 +124,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Desktop Persistent Sidebar */}
       <div className="hidden lg:block h-screen sticky top-0 shrink-0">
         <Sidebar
-          theme={theme}
+          theme={resolvedTheme}
+          themeMode={themeMode}
+          palette={palette}
+          onSelectTheme={setThemeMode}
           onToggleTheme={toggleTheme}
+          onTogglePalette={togglePalette}
           onLockApp={handleLock}
         />
       </div>
@@ -161,8 +159,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <Sidebar
             className="w-full h-full border-r border-[var(--border-subtle)]"
             onCloseMobile={() => setIsMobileMenuOpen(false)}
-            theme={theme}
+            theme={resolvedTheme}
+            themeMode={themeMode}
+            palette={palette}
+            onSelectTheme={setThemeMode}
             onToggleTheme={toggleTheme}
+            onTogglePalette={togglePalette}
             onLockApp={handleLock}
           />
         </div>

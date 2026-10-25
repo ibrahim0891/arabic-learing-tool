@@ -25,15 +25,7 @@ export const LearningActivitiesSection: React.FC<LearningActivitiesSectionProps>
 
   return (
     <section className="flex flex-col gap-4">
-      {/* Section Heading */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-[16px] leading-[24px] font-semibold text-[var(--ink-primary)]">
-          Learning activities
-        </h2>
-        <span className="text-[12px] leading-[18px] text-[var(--ink-secondary)]">
-          Recommended for your current level
-        </span>
-      </div>
+
 
       {/* Activities Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">

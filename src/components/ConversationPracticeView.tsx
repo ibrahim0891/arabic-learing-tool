@@ -27,11 +27,11 @@ import { Badge } from './ui/Badge';
 import { ArabicText } from './ui/ArabicText';
 
 const PRESET_TOPICS = [
-  { id: 'cafe', label: 'Ordering at a Cafe', prompt: 'Two friends meeting at a lively coffee shop ordering drinks and discussing their day.' },
-  { id: 'airport', label: 'At the Airport & Travel', prompt: 'Asking directions, checking luggage, and passport control at the airport.' },
-  { id: 'market', label: 'Souq & Haggling Prices', prompt: 'A customer inquiring about fruit and spices at a traditional market and discussing prices.' },
-  { id: 'weekend', label: 'Weekend Plans with Friends', prompt: 'Friends deciding whether to go to the beach or dinner this weekend.' },
-  { id: 'work', label: 'Work & Professional Chat', prompt: 'Two colleagues discussing a project milestone and setting up a meeting.' },
+  { id: 'cafe', label: 'Ordering at a Cafe', arabic: 'الطَّلَبُ فِي الْمَقْهَى', prompt: 'Two friends meeting at a lively coffee shop ordering drinks and discussing their day.' },
+  { id: 'airport', label: 'At the Airport & Travel', arabic: 'فِي الْمَطَارِ وَالسَّفَرِ', prompt: 'Asking directions, checking luggage, and passport control at the airport.' },
+  { id: 'market', label: 'Souq & Haggling Prices', arabic: 'فِي السُّوقِ وَمُسَاوَمَةِ الْأَسْعَارِ', prompt: 'A customer inquiring about fruit and spices at a traditional market and discussing prices.' },
+  { id: 'weekend', label: 'Weekend Plans with Friends', arabic: 'خُطَطُ عُطْلَةِ نِهَايَةِ الْأُسْبُوعِ', prompt: 'Friends deciding whether to go to the beach or dinner this weekend.' },
+  { id: 'work', label: 'Work & Professional Chat', arabic: 'مُحَادَثَةُ الْعَمَلِ', prompt: 'Two colleagues discussing a project milestone and setting up a meeting.' },
 ];
 
 const BREAKDOWN_PREVIEW_COUNT = 5;
@@ -89,6 +89,7 @@ export const ConversationPracticeView: React.FC = () => {
   // Interactive message bubble state: tracks which message has its translation revealed
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState<boolean>(true);
 
   // On-demand AI word-by-word breakdown state
   const [breakdownLoadingId, setBreakdownLoadingId] = useState<string | null>(null);
@@ -394,37 +395,19 @@ export const ConversationPracticeView: React.FC = () => {
             handleSelectConversation(conv);
             if (onSelect) onSelect();
           }}
-          className={`relative p-3 rounded-[10px] cursor-pointer transition-all flex items-start gap-3 select-none group border ${
+          className={`relative p-3.5 sm:p-4 rounded-[12px] cursor-pointer transition-all flex flex-col select-none group border ${
             isSelected
               ? 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)] shadow-2xs'
-              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]/60 hover:border-[var(--accent-ochre)]/40 hover:bg-[var(--bg-canvas)]'
+              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]/80 hover:border-[var(--accent-ochre)]/50 hover:bg-[var(--bg-canvas)]'
           }`}
         >
-          {/* Active indicator bar */}
-          {isSelected && (
-            <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--accent-ochre)]" />
-          )}
-
-          {/* Speaker initial pill / avatar */}
-          <div
-            className={`w-9 h-9 rounded-xl font-arabic font-bold flex items-center justify-center text-[15px] shrink-0 border transition-all ${
-              isSelected
-                ? 'bg-[var(--accent-ochre)] text-white border-transparent shadow-xs'
-                : 'bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] border-[var(--border-accent)] group-hover:scale-105'
-            }`}
-          >
-            <span className="leading-none select-none">
-              {conv.speakers[0] ? conv.speakers[0].charAt(0) : 'ح'}
-            </span>
-          </div>
-
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-            {/* Title with isolated BiDi text to prevent scrambling */}
-            <div className="flex items-center gap-1.5 min-w-0 pr-5">
+          <div className="w-full flex flex-col gap-1">
+            {/* Title with isolated BiDi text */}
+            <div className="flex items-start justify-between gap-3 pr-6">
               <h3
                 dir="ltr"
-                className={`font-semibold text-[13px] leading-[18px] truncate ${
-                  isSelected ? 'text-[var(--accent-ochre)] font-bold' : 'text-[var(--ink-primary)]'
+                className={`font-bold text-[15px] sm:text-[16px] leading-[22px] truncate ${
+                  isSelected ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-primary)]'
                 }`}
               >
                 <bdi>{engTitle}</bdi>
@@ -435,23 +418,26 @@ export const ConversationPracticeView: React.FC = () => {
             {arTitle && (
               <span
                 dir="rtl"
-                className="font-arabic text-[12px] text-[var(--accent-ochre)] font-medium leading-tight truncate self-start opacity-95"
+                className="font-arabic text-[15px] sm:text-[16px] text-[var(--accent-ochre)] font-bold leading-snug self-start"
               >
                 {arTitle}
               </span>
             )}
 
-            {/* Snippet of last message */}
+            {/* Arabic Snippet of last message */}
             {lastMsg && (
-              <p dir="rtl" className="font-arabic text-[12px] leading-[18px] text-[var(--ink-secondary)] truncate mt-0.5 opacity-80">
+              <p
+                dir="rtl"
+                className="font-arabic text-[15px] sm:text-[16px] leading-[24px] text-[var(--ink-primary)]/90 mt-1 select-text line-clamp-2"
+              >
                 {lastMsg.arabic}
               </p>
             )}
 
             {/* Meta info footer */}
-            <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-secondary)] pt-1 border-t border-[var(--border-subtle)]/40 mt-1">
-              <span className="truncate max-w-[120px]">{conv.speakers.join(', ')}</span>
-              <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[10px] text-[var(--ink-muted)]">
+            <div className="flex items-center justify-between gap-2 text-[12px] text-[var(--ink-secondary)] pt-2 border-t border-[var(--border-subtle)]/60 mt-2 font-medium">
+              <span className="truncate max-w-[150px]">{conv.speakers.join(', ')}</span>
+              <span className="shrink-0 font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[11px] text-[var(--ink-secondary)]">
                 {conv.messages.length} lines
               </span>
             </div>
@@ -461,11 +447,11 @@ export const ConversationPracticeView: React.FC = () => {
           <button
             type="button"
             onClick={(e) => handleDelete(conv.id, e)}
-            className="absolute top-2.5 right-2 p-1 text-[var(--ink-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-[6px] transition opacity-70 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+            className="absolute top-3 right-3 p-1 text-[var(--ink-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-[6px] transition opacity-70 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
             title="Delete dialogue"
             aria-label="Delete dialogue"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       );
@@ -475,90 +461,60 @@ export const ConversationPracticeView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-canvas)] overflow-hidden">
       {/* Sub-Header Toolbar */}
-      <div className="h-[56px] sm:h-[64px] px-3 sm:px-6 flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 z-10">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {/* Mobile dialogues list opener */}
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(true)}
-            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] transition cursor-pointer shrink-0 active:scale-95 shadow-2xs"
-            title="Open dialogues list"
-            aria-label="Open dialogues list"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
-            <span className="text-[12px] font-semibold">Chats</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-[var(--bg-accent-tint)] text-[10px] font-mono text-[var(--accent-ochre)] font-bold">
-              {historyList.length}
-            </span>
-          </button>
+      <div className="h-[58px] sm:h-[64px] px-3 sm:px-6 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 z-10">
+        {/* Left balance spacer for true centering */}
+        <div className="w-9 h-9 shrink-0 pointer-events-none" aria-hidden="true" />
 
-          <div className="hidden sm:flex w-8 h-8 rounded-[8px] bg-[var(--bg-accent-tint)] items-center justify-center shrink-0 text-[var(--accent-ochre)]">
-            <MessageSquare className="w-4 h-4" />
-          </div>
+        {/* Centered Dialogue Title: English & Arabic */}
+        <div className="flex-1 flex flex-col items-center justify-center text-center min-w-0 px-2">
+          {activeConversation ? (
+            (() => {
+              const { english: parsedEng, arabic: parsedAr } = parseDialogueTitle(activeConversation.title);
+              const matchedPreset = PRESET_TOPICS.find(
+                (p) => p.id === activeConversation.topic || p.label.toLowerCase() === parsedEng.toLowerCase()
+              );
+              const arDisplay = parsedAr || matchedPreset?.arabic || null;
 
-          <div className="flex flex-col min-w-0 justify-center">
-            <div className="flex items-center gap-1.5 min-w-0">
-              {activeConversation ? (
+              return (
                 <>
-                  <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
-                    <bdi>{parseDialogueTitle(activeConversation.title).english}</bdi>
+                  <h1 className="text-[14px] sm:text-[16px] font-bold text-[var(--ink-primary)] tracking-tight truncate max-w-full leading-snug">
+                    <bdi>{parsedEng}</bdi>
                   </h1>
-                  {parseDialogueTitle(activeConversation.title).arabic && (
-                    <span dir="rtl" className="hidden sm:inline font-arabic text-[12px] text-[var(--accent-ochre)] font-medium shrink-0">
-                      ({parseDialogueTitle(activeConversation.title).arabic})
+                  {arDisplay && (
+                    <span
+                      dir="rtl"
+                      className="font-arabic text-[13px] sm:text-[14px] text-[var(--accent-ochre)] font-bold leading-snug truncate max-w-full"
+                    >
+                      <bdi>{arDisplay}</bdi>
                     </span>
                   )}
-                  <div className="hidden sm:inline-flex shrink-0">
-                    <Badge variant="ochre" className="capitalize text-[10px]">
-                      {activeConversation.difficulty}
-                    </Badge>
-                  </div>
                 </>
-              ) : (
-                <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
-                  Spoken Dialogues
-                </h1>
-              )}
-            </div>
-
-            <span className="text-[10px] sm:text-[11px] leading-tight sm:leading-[15px] text-[var(--ink-secondary)] truncate">
-              {activeConversation ? (
-                <>
-                  <span className="font-medium text-[var(--ink-primary)]">{activeConversation.speakers.join(' & ')}</span>
-                  <span> • </span>
-                  <span>{activeConversation.messages.length} turns</span>
-                </>
-              ) : (
-                'Select or create dialogue'
-              )}
-            </span>
-          </div>
+              );
+            })()
+          ) : (
+            <h1 className="text-[15px] sm:text-[17px] font-bold text-[var(--ink-primary)] tracking-tight truncate">
+              Spoken Dialogues
+            </h1>
+          )}
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {activeConversation && (
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(confirmDeleteId ? null : activeConversation.id)}
-              className="p-1.5 sm:p-2 rounded-[8px] text-[var(--ink-secondary)] hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
-              title="Delete conversation"
-              aria-label="Delete dialogue"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
-            onClick={() => setIsModalOpen(true)}
-            className="px-2.5 sm:px-3 text-[12px] h-8 sm:h-9"
+        {/* Right side: Chat icon only, no bg, no label */}
+        <div className="w-9 h-9 shrink-0 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                setIsMobileSidebarOpen(true);
+              } else {
+                setIsDesktopSidebarVisible((prev) => !prev);
+              }
+            }}
+            className="w-9 h-9 flex items-center justify-center text-[var(--ink-secondary)] hover:text-[var(--accent-ochre)] active:scale-95 transition cursor-pointer"
+            title="Dialogues"
+            aria-label="Dialogues list"
           >
-            <span className="hidden sm:inline">New Dialogue</span>
-            <span className="sm:hidden font-medium">New</span>
-          </Button>
+            <MessageSquare className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -633,23 +589,25 @@ export const ConversationPracticeView: React.FC = () => {
       {/* Main Split: Left Dialogues List (Desktop) + Right Chat Feed */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Desktop Left Sidebar */}
-        <aside className="hidden md:flex w-72 lg:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex-col shrink-0">
-          {renderSearchBar()}
-          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
-            {renderDialogueCards()}
-          </div>
-          <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Plus className="w-3.5 h-3.5" />}
-              onClick={() => setIsModalOpen(true)}
-              className="w-full justify-center h-9 text-[12px] font-semibold shadow-2xs"
-            >
-              New Dialogue
-            </Button>
-          </div>
-        </aside>
+        {isDesktopSidebarVisible && (
+          <aside className="hidden md:flex w-72 lg:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex-col shrink-0">
+            {renderSearchBar()}
+            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+              {renderDialogueCards()}
+            </div>
+            <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => setIsModalOpen(true)}
+                className="w-full justify-center h-9 text-[12px] font-semibold shadow-2xs"
+              >
+                New Dialogue
+              </Button>
+            </div>
+          </aside>
+        )}
 
         {/* Right Area: Interactive Chat Feed */}
         <main className="flex-1 flex flex-col bg-[var(--bg-canvas)] relative overflow-hidden min-w-0">
@@ -677,16 +635,8 @@ export const ConversationPracticeView: React.FC = () => {
           {activeConversation ? (
             <div className="flex-1 flex flex-col overflow-hidden relative">
               {/* Scrollable Feed */}
-              <div className="flex-1 p-3 sm:p-8 overflow-y-auto">
-                <div className="max-w-3xl mx-auto w-full flex flex-col gap-4">
-                  {/* Topic context banner */}
-                  <div className="flex justify-center py-1">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[12px] text-[var(--ink-secondary)] shadow-2xs">
-                      <Sparkles className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
-                      <span>Scenario: <strong className="text-[var(--ink-primary)] font-semibold">{activeConversation.topic}</strong></span>
-                    </span>
-                  </div>
-
+              <div className="flex-1 p-3 sm:p-6 overflow-y-auto">
+                <div className="max-w-3xl mx-auto w-full flex flex-col gap-4 sm:gap-5">
                   {/* Message Bubbles */}
                   {activeConversation.messages.map((msg, idx) => {
                     const speakerIndex = activeConversation.speakers.indexOf(msg.speakerName);
@@ -702,40 +652,40 @@ export const ConversationPracticeView: React.FC = () => {
                     return (
                       <div
                         key={msg.id || idx}
-                        className={`flex flex-col ${isFirstSpeaker ? 'items-start' : 'items-end'} gap-1 w-full`}
+                        className={`flex flex-col ${isFirstSpeaker ? 'items-start' : 'items-end'} gap-1.5 w-full`}
                       >
-                        {/* Speaker Name Tag */}
-                        <div className="flex items-center gap-1.5 px-1">
-                          <span className="text-[11px] font-semibold text-[var(--ink-secondary)]">
-                            {msg.speakerName}
+                        {/* Speaker Name Tag with Standardized BiDi */}
+                        <div className={`flex items-center gap-1.5 px-2 ${isFirstSpeaker ? 'flex-row' : 'flex-row-reverse'}`}>
+                          <span dir="auto" className="text-[12px] font-semibold text-[var(--ink-secondary)]">
+                            <bdi>{msg.speakerName}</bdi>
                           </span>
                           {msg.speakerRole && (
-                            <span className="text-[10px] text-[var(--ink-muted)]">
-                              ({msg.speakerRole})
+                            <span dir="auto" className="text-[11px] text-[var(--ink-muted)]">
+                              (<bdi>{msg.speakerRole}</bdi>)
                             </span>
                           )}
                         </div>
 
-                        {/* Chat Bubble Container */}
-                        <div className="relative group chat-bubble-container max-w-[92%] sm:max-w-[80%]">
+                        {/* Chat Bubble Container with Softened Borders and Increased Padding */}
+                        <div className="relative group chat-bubble-container max-w-[94%] sm:max-w-[82%]">
                           <div
                             onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
-                            className={`p-4 sm:p-5 rounded-[12px] cursor-pointer transition-all border shadow-2xs select-none ${
+                            className={`p-5 sm:p-6 rounded-[18px] sm:rounded-[22px] cursor-pointer transition-all border select-none ${
                               isFirstSpeaker
-                                ? 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/50'
-                                : 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)] hover:border-[var(--accent-ochre)]'
+                                ? 'bg-[var(--bg-surface)] border-[var(--border-subtle)]/70 hover:border-[var(--accent-ochre)]/40 shadow-xs'
+                                : 'bg-[var(--bg-accent-tint)]/60 border-[var(--border-accent)]/60 hover:border-[var(--accent-ochre)] shadow-xs'
                             }`}
                           >
-                            {/* Arabic Spoken Message */}
-                            <div className="flex items-start justify-between gap-4">
+                            {/* Arabic Spoken Message with Standardized BiDi Alignment */}
+                            <div className="flex items-start justify-between gap-3 sm:gap-4">
                               <p
                                 dir="rtl"
-                                className="font-arabic text-xl sm:text-2xl font-semibold text-[var(--ink-primary)] leading-[170%] text-right flex-1 select-text"
+                                className="font-arabic text-[21px] sm:text-[25px] font-bold text-[var(--ink-primary)] leading-[185%] text-right flex-1 select-text"
                               >
                                 {msg.arabic}
                               </p>
 
-                              <div onClick={(e) => e.stopPropagation()} className="shrink-0 pt-0.5">
+                              <div onClick={(e) => e.stopPropagation()} className="shrink-0 pt-1">
                                 <AudioPronounceButton
                                   arabicText={msg.arabic}
                                   size="sm"
@@ -745,14 +695,14 @@ export const ConversationPracticeView: React.FC = () => {
                             </div>
 
                             {/* Translation toggle hint */}
-                            <div className="flex items-center justify-end gap-1 mt-2 text-[11px] text-[var(--ink-secondary)] opacity-80">
-                              <span>{isExpanded ? 'Hide translation' : 'Tap to reveal translation'}</span>
+                            <div className="flex items-center justify-end gap-1.5 mt-2.5 pt-2 border-t border-[var(--border-subtle)]/40 text-[11px] text-[var(--ink-secondary)] font-medium opacity-85">
+                              <span>{isExpanded ? 'Hide English translation' : 'Tap to reveal translation'}</span>
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </div>
 
                             {/* Expanded Translation & Word-by-Word Breakdown */}
                             {isExpanded && (
-                              <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-2.5 animate-fadeIn bg-[var(--bg-canvas)] p-3 rounded-[8px]">
+                              <div className="mt-3.5 pt-3 border-t border-[var(--border-subtle)]/60 flex flex-col gap-2.5 animate-fadeIn bg-[var(--bg-canvas)] p-3.5 rounded-[12px]">
                                 {msg.transliteration && (
                                   <div className="flex flex-col gap-0.5">
                                     <span className="text-[10px] uppercase font-mono font-semibold text-[var(--accent-ochre)]">
@@ -768,13 +718,13 @@ export const ConversationPracticeView: React.FC = () => {
                                   <span className="text-[10px] uppercase font-mono font-semibold text-[var(--ink-muted)]">
                                     English Meaning
                                   </span>
-                                  <p className="text-[13px] text-[var(--ink-primary)] font-normal">
+                                  <p className="text-[13px] text-[var(--ink-primary)] font-medium">
                                     "{msg.english}"
                                   </p>
                                 </div>
 
                                 {/* Word-by-word Breakdown */}
-                                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]/50">
                                   <div className="flex items-center justify-between">
                                     <span className="text-[10px] uppercase font-mono font-semibold text-[var(--accent-ochre)]">
                                       Word by Word {breakdownWords.length > 0 ? `(${breakdownWords.length})` : ''}
@@ -802,23 +752,23 @@ export const ConversationPracticeView: React.FC = () => {
                                     )}
                                   </div>
 
-                                  {/* Breakdown list */}
+                                  {/* Breakdown list with BiDi standardization */}
                                   {breakdownWords.length > 0 && (
                                     <div className="flex flex-col gap-1.5 pt-1">
                                       {visibleBreakdownWords.map((item, bIdx) => (
                                         <div
                                           key={bIdx}
-                                          className="p-2 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-[12px]"
+                                          className="p-2.5 rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]/60 flex items-center justify-between gap-2 text-[12px]"
                                         >
                                           <div className="flex items-center gap-2">
-                                            <span dir="rtl" className="font-arabic font-semibold text-[var(--accent-ochre)] text-[16px]">
-                                              {item.arabic}
+                                            <span dir="rtl" className="font-arabic font-bold text-[var(--accent-ochre)] text-[16px]">
+                                              <bdi>{item.arabic}</bdi>
                                             </span>
-                                            <span className="font-mono text-[11px] text-[var(--ink-muted)]">
+                                            <span dir="ltr" className="font-mono text-[11px] text-[var(--ink-muted)]">
                                               ({item.transliteration})
                                             </span>
                                           </div>
-                                          <span className="text-[12px] text-[var(--ink-primary)] text-right">
+                                          <span dir="ltr" className="text-[12px] text-[var(--ink-primary)] text-right font-medium">
                                             {item.english}
                                           </span>
                                         </div>
@@ -834,7 +784,7 @@ export const ConversationPracticeView: React.FC = () => {
                                               [msg.id]: !prev[msg.id],
                                             }));
                                           }}
-                                          className="text-[11px] text-[var(--accent-ochre)] hover:underline self-center pt-1 cursor-pointer"
+                                          className="text-[11px] text-[var(--accent-ochre)] hover:underline self-center pt-1 cursor-pointer font-medium"
                                         >
                                           {isBreakdownOpen
                                             ? 'Show less'

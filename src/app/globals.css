@@ -65,6 +65,50 @@
   --accent-terracotta: #F87171;
 }
 
+/* ── GRASS GREEN THEME (الرِّيَاضُ الخَضْرَاء) - LIGHT VARIATION ───────────── */
+[data-theme='grass-light'],
+[data-theme='light'][data-palette='grass'] {
+  --bg-primary: #F3F8F5;
+  --bg-canvas: #F3F8F5;
+  --bg-sidebar: #F8FBF9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-accent-tint: #E8F5ED;
+  --border-subtle: #D8EADB;
+  --border-strong: #BAD7BF;
+  --border-accent: #86C99B;
+  --ink-primary: #152E1D;
+  --ink-secondary: #4A6E55;
+  --ink-muted: #74967E;
+  --accent-ochre: #1F8A4C;
+  --accent-ochre-dim: #E8F5ED;
+  --accent-cypress: #145E32;
+  --accent-cypress-dim: rgba(20, 94, 50, 0.12);
+  --accent-terracotta: #C84630;
+}
+
+/* ── GRASS GREEN THEME (الرِّيَاضُ الخَضْرَاء) - DARK VARIATION ────────────── */
+[data-theme='grass-dark'],
+[data-theme='dark'][data-palette='grass'] {
+  --bg-primary: #0F1A13;
+  --bg-canvas: #0F1A13;
+  --bg-sidebar: #14221A;
+  --bg-surface: #1B2D22;
+  --bg-surface-elevated: #233A2D;
+  --bg-accent-tint: rgba(56, 199, 109, 0.16);
+  --border-subtle: #243B2D;
+  --border-strong: #335340;
+  --border-accent: #2E7348;
+  --ink-primary: #EEFBF2;
+  --ink-secondary: #96BBA2;
+  --ink-muted: #648870;
+  --accent-ochre: #38C76D;
+  --accent-ochre-dim: rgba(56, 199, 109, 0.18);
+  --accent-cypress: #5DE296;
+  --accent-cypress-dim: rgba(93, 226, 150, 0.2);
+  --accent-terracotta: #F87171;
+}
+
 * {
   box-sizing: border-box;
 }
