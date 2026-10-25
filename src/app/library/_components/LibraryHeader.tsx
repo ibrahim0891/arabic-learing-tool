@@ -22,7 +22,7 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
       <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex hidden flex-wrap items-center gap-2.5">
           <Badge variant="ochre">
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               <BookOpen className="w-3 h-3 text-[var(--accent-ochre)]" />
@@ -59,14 +59,14 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           Mastery Stats
         </Button>
 
-        <Button
+        {/* <Button
           variant="primary"
           size="sm"
           onClick={onOpenAdd}
           leftIcon={<Plus className="w-4 h-4" />}
         >
           Add Word Manually
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

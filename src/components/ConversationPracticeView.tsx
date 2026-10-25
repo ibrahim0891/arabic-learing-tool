@@ -36,6 +36,29 @@ const PRESET_TOPICS = [
 
 const BREAKDOWN_PREVIEW_COUNT = 5;
 
+export function parseDialogueTitle(title: string): { english: string; arabic: string | null } {
+  if (!title) return { english: 'Untitled Dialogue', arabic: null };
+
+  // Match: English Title (Arabic inside parens) e.g. "Ordering at a Cafe (فِي المَقْهَى)"
+  const engArMatch = title.match(/^(.*?)\s*\(([^)]*[\u0600-\u06FF][^)]*)\)$/);
+  if (engArMatch) {
+    return { english: engArMatch[1].trim(), arabic: engArMatch[2].trim() };
+  }
+
+  // Match: Arabic Title (English inside parens)
+  const arEngMatch = title.match(/^([^)]*[\u0600-\u06FF][^)]*)\s*\((.*?)\)$/);
+  if (arEngMatch) {
+    return { english: arEngMatch[2].trim(), arabic: arEngMatch[1].trim() };
+  }
+
+  // Pure Arabic title without parens
+  if (/^[\u0600-\u06FF\s\d.,!?-]+$/.test(title.trim())) {
+    return { english: title.trim(), arabic: title.trim() };
+  }
+
+  return { english: title.trim(), arabic: null };
+}
+
 export const ConversationPracticeView: React.FC = () => {
   // Modal creation state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -89,6 +112,18 @@ export const ConversationPracticeView: React.FC = () => {
       document.body.style.overflow = '';
     };
   }, [isModalOpen]);
+
+  // Escape key for mobile dialogues drawer
+  useEffect(() => {
+    if (!isMobileSidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileSidebarOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isMobileSidebarOpen]);
 
   // Click outside listener to collapse expanded message translation
   useEffect(() => {
@@ -270,19 +305,191 @@ export const ConversationPracticeView: React.FC = () => {
     );
   });
 
+  const renderSearchBar = () => (
+    <div className="p-3 border-b border-[var(--border-subtle)] flex flex-col gap-2 shrink-0">
+      <div className="flex items-center justify-between text-[12px] px-1">
+        <span className="font-semibold text-[var(--ink-primary)]">
+          Saved Dialogues
+        </span>
+        <span className="text-[11px] text-[var(--ink-secondary)] font-mono">
+          {historyList.length} chats
+        </span>
+      </div>
+
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          placeholder="Search dialogues..."
+          value={searchHistory}
+          onChange={(e) => setSearchHistory(e.target.value)}
+          className="w-full pl-8 pr-7 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[12px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
+        />
+        {searchHistory && (
+          <button
+            type="button"
+            onClick={() => setSearchHistory('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--ink-muted)] hover:text-[var(--ink-primary)] transition cursor-pointer"
+            aria-label="Clear search"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderDialogueCards = (onSelect?: () => void) => {
+    if (isLoadingHistory && historyList.length === 0) {
+      return (
+        <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex items-center justify-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-[var(--accent-ochre)]" />
+          <span>Loading dialogues...</span>
+        </div>
+      );
+    }
+
+    if (filteredHistory.length === 0) {
+      return (
+        <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex flex-col items-center gap-2">
+          {searchHistory ? (
+            <>
+              <p className="text-[var(--ink-muted)]">No dialogues matching "{searchHistory}"</p>
+              <button
+                type="button"
+                onClick={() => setSearchHistory('')}
+                className="text-[11px] text-[var(--accent-ochre)] font-semibold hover:underline cursor-pointer"
+              >
+                Clear search
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-[var(--ink-muted)]">No dialogues found.</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (onSelect) onSelect();
+                  setIsModalOpen(true);
+                }}
+              >
+                Create one now
+              </Button>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    return filteredHistory.map((conv) => {
+      const isSelected = activeConversation?.id === conv.id;
+      const lastMsg = conv.messages[conv.messages.length - 1];
+      const { english: engTitle, arabic: arTitle } = parseDialogueTitle(conv.title);
+
+      return (
+        <div
+          key={conv.id}
+          onClick={() => {
+            handleSelectConversation(conv);
+            if (onSelect) onSelect();
+          }}
+          className={`relative p-3 rounded-[10px] cursor-pointer transition-all flex items-start gap-3 select-none group border ${
+            isSelected
+              ? 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)] shadow-2xs'
+              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]/60 hover:border-[var(--accent-ochre)]/40 hover:bg-[var(--bg-canvas)]'
+          }`}
+        >
+          {/* Active indicator bar */}
+          {isSelected && (
+            <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--accent-ochre)]" />
+          )}
+
+          {/* Speaker initial pill / avatar */}
+          <div
+            className={`w-9 h-9 rounded-xl font-arabic font-bold flex items-center justify-center text-[15px] shrink-0 border transition-all ${
+              isSelected
+                ? 'bg-[var(--accent-ochre)] text-white border-transparent shadow-xs'
+                : 'bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] border-[var(--border-accent)] group-hover:scale-105'
+            }`}
+          >
+            <span className="leading-none select-none">
+              {conv.speakers[0] ? conv.speakers[0].charAt(0) : 'ح'}
+            </span>
+          </div>
+
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            {/* Title with isolated BiDi text to prevent scrambling */}
+            <div className="flex items-center gap-1.5 min-w-0 pr-5">
+              <h3
+                dir="ltr"
+                className={`font-semibold text-[13px] leading-[18px] truncate ${
+                  isSelected ? 'text-[var(--accent-ochre)] font-bold' : 'text-[var(--ink-primary)]'
+                }`}
+              >
+                <bdi>{engTitle}</bdi>
+              </h3>
+            </div>
+
+            {/* Arabic Title Subtitle */}
+            {arTitle && (
+              <span
+                dir="rtl"
+                className="font-arabic text-[12px] text-[var(--accent-ochre)] font-medium leading-tight truncate self-start opacity-95"
+              >
+                {arTitle}
+              </span>
+            )}
+
+            {/* Snippet of last message */}
+            {lastMsg && (
+              <p dir="rtl" className="font-arabic text-[12px] leading-[18px] text-[var(--ink-secondary)] truncate mt-0.5 opacity-80">
+                {lastMsg.arabic}
+              </p>
+            )}
+
+            {/* Meta info footer */}
+            <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-secondary)] pt-1 border-t border-[var(--border-subtle)]/40 mt-1">
+              <span className="truncate max-w-[120px]">{conv.speakers.join(', ')}</span>
+              <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[10px] text-[var(--ink-muted)]">
+                {conv.messages.length} lines
+              </span>
+            </div>
+          </div>
+
+          {/* Delete hover button */}
+          <button
+            type="button"
+            onClick={(e) => handleDelete(conv.id, e)}
+            className="absolute top-2.5 right-2 p-1 text-[var(--ink-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-[6px] transition opacity-70 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+            title="Delete dialogue"
+            aria-label="Delete dialogue"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-canvas)] overflow-hidden">
       {/* Sub-Header Toolbar */}
       <div className="h-[56px] sm:h-[64px] px-3 sm:px-6 flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 z-10">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* Mobile dialogues list opener */}
           <button
             type="button"
-            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            className="md:hidden p-1.5 rounded-[8px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] transition cursor-pointer shrink-0"
-            title="Toggle history"
-            aria-label="Toggle dialogues list"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--ink-primary)] transition cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+            title="Open dialogues list"
+            aria-label="Open dialogues list"
           >
-            <History className="w-4 h-4" />
+            <MessageSquare className="w-3.5 h-3.5 text-[var(--accent-ochre)]" />
+            <span className="text-[12px] font-semibold">Chats</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-[var(--bg-accent-tint)] text-[10px] font-mono text-[var(--accent-ochre)] font-bold">
+              {historyList.length}
+            </span>
           </button>
 
           <div className="hidden sm:flex w-8 h-8 rounded-[8px] bg-[var(--bg-accent-tint)] items-center justify-center shrink-0 text-[var(--accent-ochre)]">
@@ -291,15 +498,26 @@ export const ConversationPracticeView: React.FC = () => {
 
           <div className="flex flex-col min-w-0 justify-center">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
-                {activeConversation ? activeConversation.title : 'Spoken Dialogues'}
-              </h1>
-              {activeConversation && (
-                <div className="hidden sm:inline-flex shrink-0">
-                  <Badge variant="ochre" className="capitalize text-[10px]">
-                    {activeConversation.difficulty}
-                  </Badge>
-                </div>
+              {activeConversation ? (
+                <>
+                  <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
+                    <bdi>{parseDialogueTitle(activeConversation.title).english}</bdi>
+                  </h1>
+                  {parseDialogueTitle(activeConversation.title).arabic && (
+                    <span dir="rtl" className="hidden sm:inline font-arabic text-[12px] text-[var(--accent-ochre)] font-medium shrink-0">
+                      ({parseDialogueTitle(activeConversation.title).arabic})
+                    </span>
+                  )}
+                  <div className="hidden sm:inline-flex shrink-0">
+                    <Badge variant="ochre" className="capitalize text-[10px]">
+                      {activeConversation.difficulty}
+                    </Badge>
+                  </div>
+                </>
+              ) : (
+                <h1 className="text-[13px] sm:text-[16px] font-semibold text-[var(--ink-primary)] tracking-tight truncate">
+                  Spoken Dialogues
+                </h1>
               )}
             </div>
 
@@ -344,119 +562,94 @@ export const ConversationPracticeView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Split: Left Dialogues List + Right Chat Feed */}
-      <div className="flex-1 min-h-0 flex overflow-hidden relative">
-        {/* Left Sidebar: Conversations List */}
+      {/* Mobile Dialogues Drawer Overlay */}
+      <div
+        className={`fixed inset-0 z-50 md:hidden transition-all duration-300 ease-in-out ${
+          isMobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!isMobileSidebarOpen}
+      >
+        {/* Backdrop Scrim */}
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+
+        {/* Slide-out Drawer Panel */}
         <aside
-          className={`w-72 sm:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col shrink-0 transition-transform duration-200 z-20 md:static md:translate-x-0 ${
-            isMobileSidebarOpen
-              ? 'absolute inset-y-0 left-0 shadow-xl translate-x-0'
-              : 'absolute inset-y-0 left-0 -translate-x-full md:translate-x-0'
+          className={`relative z-10 w-[86vw] max-w-[340px] h-full bg-[var(--bg-surface)] shadow-2xl flex flex-col transform transition-transform duration-300 ease-out will-change-transform ${
+            isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Search Bar */}
-          <div className="p-3 border-b border-[var(--border-subtle)] flex flex-col gap-2">
-            <div className="flex items-center justify-between text-[12px] px-1">
-              <span className="font-semibold text-[var(--ink-primary)]">
-                Dialogues
-              </span>
-              <span className="text-[11px] text-[var(--ink-secondary)] font-mono">
-                {historyList.length} chats
-              </span>
+          {/* Drawer Header */}
+          <div className="p-3.5 px-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface)] shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] flex items-center justify-center shrink-0 shadow-2xs">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-[14px] text-[var(--ink-primary)] leading-tight truncate">Dialogues</h2>
+                <span className="text-[11px] text-[var(--ink-secondary)] font-mono">{historyList.length} saved</span>
+              </div>
             </div>
 
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search dialogues..."
-                value={searchHistory}
-                onChange={(e) => setSearchHistory(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[12px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)] transition"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="w-8 h-8 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] active:scale-95 transition cursor-pointer"
+              aria-label="Close dialogues list"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Conversations List */}
+          {/* Search Bar */}
+          {renderSearchBar()}
+
+          {/* Dialogue Cards */}
           <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
-            {isLoadingHistory && historyList.length === 0 ? (
-              <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-[var(--accent-ochre)]" />
-                <span>Loading dialogues...</span>
-              </div>
-            ) : filteredHistory.length === 0 ? (
-              <div className="p-8 text-center text-[12px] text-[var(--ink-secondary)] flex flex-col items-center gap-2">
-                <p>No dialogues found.</p>
-                <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(true)}>
-                  Create one now
-                </Button>
-              </div>
-            ) : (
-              filteredHistory.map((conv) => {
-                const isSelected = activeConversation?.id === conv.id;
-                const lastMsg = conv.messages[conv.messages.length - 1];
+            {renderDialogueCards(() => setIsMobileSidebarOpen(false))}
+          </div>
 
-                return (
-                  <div
-                    key={conv.id}
-                    onClick={() => handleSelectConversation(conv)}
-                    className={`relative p-3 rounded-[8px] cursor-pointer transition-colors flex items-start gap-3 select-none group border ${
-                      isSelected
-                        ? 'bg-[var(--bg-accent-tint)] border-[var(--border-accent)]'
-                        : 'bg-[var(--bg-surface)] border-transparent hover:bg-[var(--bg-canvas)]'
-                    }`}
-                  >
-                    {/* Speaker initial pill */}
-                    <div className={`w-8 h-8 rounded-[8px] font-arabic font-bold flex items-center justify-center text-sm shrink-0 border ${
-                      isSelected
-                        ? 'bg-[var(--accent-ochre)] text-white border-transparent'
-                        : 'bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] border-[var(--border-accent)]'
-                    }`}>
-                      {conv.speakers[0] ? conv.speakers[0].charAt(0) : 'ح'}
-                    </div>
-
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <h3 className={`font-semibold text-[13px] leading-[18px] truncate pr-5 ${
-                        isSelected ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-primary)]'
-                      }`}>
-                        {conv.title}
-                      </h3>
-
-                      {lastMsg && (
-                        <p dir="rtl" className="font-arabic text-[13px] leading-[18px] text-[var(--ink-secondary)] truncate">
-                          {lastMsg.arabic}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--ink-secondary)] pt-0.5">
-                        <span className="truncate">{conv.speakers.join(', ')}</span>
-                        <span className="shrink-0">{conv.messages.length} lines</span>
-                      </div>
-                    </div>
-
-                    {/* Delete hover button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(conv.id, e)}
-                      className="absolute top-2.5 right-2 opacity-0 group-hover:opacity-100 p-1 text-[var(--ink-muted)] hover:text-red-500 hover:bg-red-500/10 rounded-[6px] transition"
-                      title="Delete chat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
+          {/* Pinned Bottom Action Button */}
+          <div className="p-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 pb-[calc(0.875rem+env(safe-area-inset-bottom))]">
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setIsMobileSidebarOpen(false);
+                setIsModalOpen(true);
+              }}
+              className="w-full justify-center h-11 text-[13px] font-bold shadow-xs active:scale-[0.99] transition"
+            >
+              New Dialogue
+            </Button>
           </div>
         </aside>
+      </div>
 
-        {/* Mobile drawer backdrop */}
-        {isMobileSidebarOpen && (
-          <div
-            onClick={() => setIsMobileSidebarOpen(false)}
-            className="md:hidden fixed inset-0 z-10 bg-black/40 backdrop-blur-xs"
-          />
-        )}
+      {/* Main Split: Left Dialogues List (Desktop) + Right Chat Feed */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        {/* Desktop Left Sidebar */}
+        <aside className="hidden md:flex w-72 lg:w-80 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex-col shrink-0">
+          {renderSearchBar()}
+          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+            {renderDialogueCards()}
+          </div>
+          <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              onClick={() => setIsModalOpen(true)}
+              className="w-full justify-center h-9 text-[12px] font-semibold shadow-2xs"
+            >
+              New Dialogue
+            </Button>
+          </div>
+        </aside>
 
         {/* Right Area: Interactive Chat Feed */}
         <main className="flex-1 flex flex-col bg-[var(--bg-canvas)] relative overflow-hidden min-w-0">

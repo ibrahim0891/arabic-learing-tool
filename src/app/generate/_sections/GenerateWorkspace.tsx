@@ -172,28 +172,14 @@ export const GenerateWorkspace: React.FC<GenerateWorkspaceProps> = ({
             </div>
 
             {/* Right Live Preview Column: (Results visible on mobile; Default empty card hidden on mobile) */}
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-7 pb-24 sm:pb-0">
               <PreviewPanelSection
                 gen={gen}
                 onNavigateToStudy={onNavigateToStudy}
+                onOpenMobileConfig={() => setIsMobileModalOpen(true)}
               />
             </div>
           </div>
-
-          {/* Mobile Floating Action Button (only shown once words exist so it doesn't duplicate the empty state card) */}
-          {!!gen.generatedResult && (
-            <div className="fixed bottom-6 right-6 z-40 lg:hidden">
-              <button
-                type="button"
-                onClick={() => setIsMobileModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-3 rounded-full bg-[var(--accent-ochre)] text-white shadow-xl active:scale-95 transition cursor-pointer font-semibold text-sm"
-                aria-label="Open Learn New Words configuration"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Learn New Words</span>
-              </button>
-            </div>
-          )}
 
           {/* Mobile Bottom-Sheet Modal — rendered at <body> via portal so it is ALWAYS a true overlay */}
           {isMobileModalOpen && createPortal(

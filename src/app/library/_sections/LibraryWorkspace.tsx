@@ -123,6 +123,13 @@ export const LibraryWorkspace: React.FC<LibraryWorkspaceProps> = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Default to cards view on smaller viewports
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setViewMode('cards');
+    }
+  }, []);
+
   // Fetch initial page whenever filters or debounced search change
   useEffect(() => {
     fetchFirstPage();

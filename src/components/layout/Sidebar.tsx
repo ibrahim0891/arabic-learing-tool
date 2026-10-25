@@ -54,12 +54,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`h-full flex flex-col justify-between p-[28px_16px_24px] gap-[24px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] shrink-0 select-none ${
+      className={`h-full flex flex-col overflow-y-auto overscroll-contain p-[28px_16px_24px] gap-[24px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] shrink-0 select-none [scrollbar-width:thin] [scrollbar-color:var(--border-subtle)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[var(--border-subtle)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${
         className || 'w-[224px]'
       }`}
     >
       {/* Top Section */}
-      <div className="flex flex-col gap-[28px]">
+      <div className="flex flex-col gap-[28px] shrink-0">
         {/* Brand identity & mobile close button */}
         <div className="flex items-center justify-between">
           <Link
@@ -150,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Bottom Section */}
-      <div className="flex flex-col gap-[16px]">
+      <div className="flex flex-col gap-[16px] shrink-0 mt-auto pt-2">
         {/* Daily goal widget */}
         <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[12px] p-[15px] flex flex-col gap-[10px] shadow-2xs">
           <div className="flex items-center justify-between text-[12px] leading-[18px]">
