@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ThemePalette = 'classic' | 'grass';
+export type ThemePalette = 'classic' | 'grass' | 'crimson';
 
 interface ThemeContextType {
   themeMode: ThemeMode;
@@ -74,7 +74,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [themeMode, setThemeMode]);
 
   const togglePalette = useCallback(() => {
-    const nextPalette: ThemePalette = palette === 'classic' ? 'grass' : 'classic';
+    const nextPalette: ThemePalette =
+      palette === 'classic' ? 'grass' : palette === 'grass' ? 'crimson' : 'classic';
     setPalette(nextPalette);
   }, [palette, setPalette]);
 
@@ -88,7 +89,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           : 'system';
 
       const savedPalette = localStorage.getItem('fasih_palette') as ThemePalette | null;
-      const initialPalette = savedPalette === 'grass' ? 'grass' : 'classic';
+      const initialPalette =
+        savedPalette === 'grass' || savedPalette === 'crimson' ? savedPalette : 'classic';
 
       setThemeModeState(initialMode);
       setPaletteState(initialPalette);

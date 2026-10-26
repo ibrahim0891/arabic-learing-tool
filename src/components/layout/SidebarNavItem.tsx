@@ -22,13 +22,13 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
     <Link
       href={href}
       onClick={onClick}
-      className={`group flex items-center justify-between px-3 h-[44px] rounded-[8px] transition-colors no-underline select-none ${
+      className={`group flex items-center justify-between px-2.5 h-[38px] rounded-[8px] transition-colors no-underline select-none ${
         isActive
           ? 'bg-[var(--bg-accent-tint)] text-[var(--accent-ochre)] font-semibold'
           : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] font-medium'
       }`}
     >
-      <div className="flex items-center gap-[11px] min-w-0">
+      <div className="flex items-center gap-[10px] min-w-0">
         <span
           className={`w-[18px] h-[18px] flex items-center justify-center shrink-0 ${
             isActive ? 'text-[var(--accent-ochre)]' : 'text-[var(--ink-secondary)] group-hover:text-[var(--ink-primary)]'
@@ -36,7 +36,7 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
         >
           {icon}
         </span>
-        <span className="text-[12px] leading-[18px] truncate">{label}</span>
+        <span className="text-[13px] leading-[18px] truncate">{label}</span>
       </div>
 
       {badge !== undefined && badge !== null && (

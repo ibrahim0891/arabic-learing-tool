@@ -8,7 +8,6 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ArabicText } from '@/components/ui/ArabicText';
-import { AudioPronounceButton } from '@/components/AudioPronounceButton';
 import { ArabicVirtualKeyboard } from '@/components/ArabicVirtualKeyboard';
 import { QuestionOptionCard } from '../_components/QuestionOptionCard';
 import { QuizProgressCard } from '../_components/QuizProgressCard';
@@ -186,13 +185,6 @@ export const QuizRunnerSection: React.FC<QuizRunnerSectionProps> = ({
                 >
                   {currentQ.subPrompt}
                 </ArabicText>
-
-                {currentQ.direction === 'ar-to-en' && currentQ.wordContext?.arabic && (
-                  <div className="flex items-center justify-center gap-2 pt-1">
-                    <AudioPronounceButton arabicText={currentQ.wordContext.arabic} size="md" />
-                    <span className="text-[11px] text-[var(--ink-muted)]">Listen pronunciation</span>
-                  </div>
-                )}
               </div>
             )}
 

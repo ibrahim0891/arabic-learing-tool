@@ -3,7 +3,6 @@
 import React from 'react';
 import { ArabicText } from '@/components/ui/ArabicText';
 import { Badge } from '@/components/ui/Badge';
-import { AudioPronounceButton } from '@/components/AudioPronounceButton';
 import { Check, X } from 'lucide-react';
 
 interface DetailedResultItem {
@@ -47,18 +46,15 @@ export const QuizReviewItem: React.FC<QuizReviewItemProps> = ({ result, index })
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ArabicText
-            as="span"
-            size="lg"
-            weight="bold"
-            color="accent"
-            className="text-[20px] leading-[30px]"
-          >
-            {result.wordArabic}
-          </ArabicText>
-          <AudioPronounceButton arabicText={result.wordArabic} size="sm" />
-        </div>
+        <ArabicText
+          as="span"
+          size="lg"
+          weight="bold"
+          color="accent"
+          className="text-[20px] leading-[30px]"
+        >
+          {result.wordArabic}
+        </ArabicText>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-subtle)]/60 text-[13px]">

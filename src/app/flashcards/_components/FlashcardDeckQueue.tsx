@@ -75,12 +75,8 @@ export const FlashcardDeckQueue: React.FC<FlashcardDeckQueueProps> = ({
                 </span>
               </div>
 
-              {isActive ? (
+              {isActive && (
                 <Play className="w-3.5 h-3.5 fill-[var(--accent-ochre)] text-[var(--accent-ochre)] shrink-0 ml-2" />
-              ) : (
-                <span className="text-[11px] text-[var(--ink-muted)] truncate max-w-[120px] hidden sm:inline ml-2 text-right">
-                  {word.english}
-                </span>
               )}
             </div>
           );

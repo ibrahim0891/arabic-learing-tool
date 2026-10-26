@@ -15,6 +15,8 @@ import {
   Moon,
   Monitor,
   Leaf,
+  Droplet,
+  Palette,
   LogOut,
   X
 } from 'lucide-react';
@@ -65,29 +67,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`h-full flex flex-col overflow-y-auto overscroll-contain p-[28px_16px_24px] gap-[24px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] shrink-0 select-none [scrollbar-width:thin] [scrollbar-color:var(--border-subtle)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[var(--border-subtle)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${
-        className || 'w-[224px]'
+      className={`h-full flex flex-col overflow-y-auto overscroll-contain p-[24px_16px_20px] gap-[20px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] shrink-0 select-none [scrollbar-width:thin] [scrollbar-color:var(--border-subtle)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[var(--border-subtle)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${
+        className || 'w-[250px]'
       }`}
     >
       {/* Top Section */}
       <div className="flex flex-col gap-[28px] shrink-0">
         {/* Brand identity & mobile close button */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-1">
           <Link
             href="/"
             onClick={onCloseMobile}
-            className="flex items-center gap-[12px] px-3 no-underline group"
+            className="flex items-center gap-[10px] no-underline group"
           >
             {/* Brand mark */}
-            <div className="w-[42px] h-[44px] rounded-[10px] bg-[var(--bg-accent-tint)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <span className="font-arabic text-[27px] leading-[45px] text-[var(--accent-ochre)] font-semibold">
+            <div className="w-[38px] h-[40px] rounded-[10px] bg-[var(--bg-accent-tint)] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <span className="font-arabic text-[24px] leading-[40px] text-[var(--accent-ochre)] font-semibold">
                 م
               </span>
             </div>
 
             {/* Brand label */}
             <div className="flex flex-col justify-center">
-              <span className="font-sans text-[20px] leading-[26px] font-bold text-[var(--ink-primary)] tracking-tight">
+              <span className="font-sans text-[17px] leading-[22px] font-bold text-[var(--ink-primary)] tracking-tight whitespace-nowrap">
                 Al-Muʿallim
               </span>
             </div>
@@ -106,8 +108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-col gap-[4px]">
-          <div className="px-3 pb-2">
+        <div className="flex flex-col gap-[3px]">
+          <div className="px-2.5 pb-1.5">
             <span className="font-sans text-[10px] font-semibold text-[var(--ink-muted)] tracking-wider uppercase">
               Workspace
             </span>
@@ -163,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom Section */}
       <div className="flex flex-col gap-[16px] shrink-0 mt-auto pt-2">
         {/* Daily goal widget */}
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[12px] p-[15px] flex flex-col gap-[10px] shadow-2xs">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[12px] p-[12px_14px] flex flex-col gap-[8px] shadow-2xs">
           <div className="flex items-center justify-between text-[12px] leading-[18px]">
             <span className="font-semibold text-[var(--ink-primary)]">Today's goal</span>
             <span className="text-[11px] leading-[16px] text-[var(--ink-secondary)]">
@@ -181,82 +183,78 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Preferences & Quick actions */}
-        <div className="flex items-center justify-between px-3 pt-1 border-t border-[var(--border-subtle)]/60">
+        <div className="flex items-center justify-between px-2 pt-1 border-t border-[var(--border-subtle)]/60">
           <Link
             href="/settings"
             onClick={onCloseMobile}
-            className={`flex items-center gap-[11px] text-[12px] leading-[18px] no-underline transition-colors ${
+            className={`flex items-center gap-[9px] text-[12px] leading-[18px] no-underline transition-colors ${
               isSettings
                 ? 'text-[var(--accent-ochre)] font-semibold'
                 : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
             }`}
           >
-            <Settings className="w-[18px] h-[18px]" />
+            <Settings className="w-[16px] h-[16px]" />
             <span>Preferences</span>
           </Link>
 
           <div className="flex items-center gap-1.5">
-            {/* Palette toggle: Classic Ochre vs Grass Green */}
+            {/* Palette cycler: Classic Ochre → Grass Green → Crimson → Classic Ochre */}
             {onTogglePalette && (
               <button
                 type="button"
                 onClick={onTogglePalette}
-                className={`p-1.5 rounded-[6px] transition-all cursor-pointer ${
+                className={`p-1.5 rounded-[6px] transition-all cursor-pointer border ${
                   palette === 'grass'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 shadow-2xs'
-                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] border border-transparent'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border-emerald-500/30 shadow-2xs'
+                    : palette === 'crimson'
+                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold border-rose-500/30 shadow-2xs'
+                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold border-amber-500/30 shadow-2xs'
                 }`}
-                title={palette === 'grass' ? 'Grass Green active (Click for Classic)' : 'Switch to Grass Green theme'}
-                aria-label="Toggle Grass Green theme"
+                title={`Palette: ${
+                  palette === 'grass'
+                    ? 'Grass Green (click for Crimson)'
+                    : palette === 'crimson'
+                      ? 'Crimson (click for Classic Ochre)'
+                      : 'Classic Ochre (click for Grass Green)'
+                }`}
+                aria-label="Cycle color palette (Classic Ochre, Grass Green, Crimson)"
               >
-                <Leaf className="w-3.5 h-3.5" />
+                {palette === 'grass' ? (
+                  <Leaf className="w-3.5 h-3.5" />
+                ) : palette === 'crimson' ? (
+                  <Droplet className="w-3.5 h-3.5" />
+                ) : (
+                  <Palette className="w-3.5 h-3.5" />
+                )}
               </button>
             )}
 
-            {/* Theme mode options: Light, Dark, System OS Sync */}
-            <div className="flex items-center p-0.5 rounded-[7px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+            {/* Theme mode cycler: Light → Dark → System */}
+            {onSelectTheme && (
               <button
                 type="button"
-                onClick={() => (onSelectTheme ? onSelectTheme('light') : onToggleTheme?.())}
-                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
-                  (themeMode ? themeMode === 'light' : theme === 'light')
-                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
-                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-                }`}
-                title="Light mode"
-                aria-label="Light mode"
-              >
-                <Sun className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => (onSelectTheme ? onSelectTheme('dark') : onToggleTheme?.())}
-                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
-                  (themeMode ? themeMode === 'dark' : theme === 'dark')
-                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
-                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-                }`}
-                title="Dark mode"
-                aria-label="Dark mode"
-              >
-                <Moon className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => (onSelectTheme ? onSelectTheme('system') : onToggleTheme?.())}
-                className={`p-1 rounded-[5px] transition-all cursor-pointer ${
+                onClick={() => {
+                  const nextMode: ThemeMode =
+                    themeMode === 'system' ? 'light' : themeMode === 'light' ? 'dark' : 'system';
+                  onSelectTheme(nextMode);
+                }}
+                className={`p-1.5 rounded-[6px] transition-all cursor-pointer border ${
                   themeMode === 'system'
-                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] shadow-2xs font-semibold'
-                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                    ? 'bg-[var(--bg-surface)] text-[var(--accent-ochre)] border-[var(--border-subtle)] shadow-2xs font-semibold'
+                    : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)] border-transparent'
                 }`}
-                title="Sync with OS theme automatically"
-                aria-label="Sync with OS theme automatically"
+                title={`Theme: ${themeMode === 'system' ? 'Sync with OS (click for Light)' : themeMode === 'light' ? 'Light mode (click for Dark)' : 'Dark mode (click for System)'}`}
+                aria-label="Cycle theme mode (Light, Dark, System)"
               >
-                <Monitor className="w-3.5 h-3.5" />
+                {themeMode === 'light' ? (
+                  <Sun className="w-3.5 h-3.5" />
+                ) : themeMode === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5" />
+                ) : (
+                  <Monitor className="w-3.5 h-3.5" />
+                )}
               </button>
-            </div>
+            )}
 
             {onLockApp && (
               <button

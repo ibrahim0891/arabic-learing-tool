@@ -109,6 +109,50 @@
   --accent-terracotta: #F87171;
 }
 
+/* ── CRIMSON THEME (اللونُ القِرمِزيُّ) - LIGHT VARIATION ─────────────────── */
+[data-theme='crimson-light'],
+[data-theme='light'][data-palette='crimson'] {
+  --bg-primary: #F8F4F4;
+  --bg-canvas: #F8F4F4;
+  --bg-sidebar: #FCF9F9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-accent-tint: #FBE9EA;
+  --border-subtle: #ECD9DB;
+  --border-strong: #D9B7BB;
+  --border-accent: #D98A93;
+  --ink-primary: #2E1B1D;
+  --ink-secondary: #7A5559;
+  --ink-muted: #A1797D;
+  --accent-ochre: #9E2A3C;
+  --accent-ochre-dim: #FBE9EA;
+  --accent-cypress: #6E1B2A;
+  --accent-cypress-dim: rgba(110, 27, 42, 0.12);
+  --accent-terracotta: #C2410C;
+}
+
+/* ── CRIMSON THEME (اللونُ القِرمِزيُّ) - DARK VARIATION ──────────────────── */
+[data-theme='crimson-dark'],
+[data-theme='dark'][data-palette='crimson'] {
+  --bg-primary: #16100F;
+  --bg-canvas: #16100F;
+  --bg-sidebar: #1D1514;
+  --bg-surface: #261C1B;
+  --bg-surface-elevated: #312423;
+  --bg-accent-tint: rgba(190, 44, 67, 0.18);
+  --border-subtle: #382827;
+  --border-strong: #4E3937;
+  --border-accent: #7A3140;
+  --ink-primary: #FBF0EF;
+  --ink-secondary: #C29B9C;
+  --ink-muted: #8E6A6B;
+  --accent-ochre: #E2596E;
+  --accent-ochre-dim: rgba(226, 89, 110, 0.18);
+  --accent-cypress: #F0919E;
+  --accent-cypress-dim: rgba(240, 145, 158, 0.2);
+  --accent-terracotta: #F87171;
+}
+
 * {
   box-sizing: border-box;
 }
