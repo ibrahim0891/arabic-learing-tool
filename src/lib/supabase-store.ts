@@ -370,6 +370,46 @@ export const dataStore = {
 
   // Get total status counts for the word bank tabs and metrics
   async getTabCounts(topic?: string, setId?: string): Promise<{ all: number; new: number; learning: number; struggling: number; mastered: number }> {
+    // 1. Try Supabase first (cloud / Vercel deployment)
+    try {
+      const getQuery = (status?: string) => {
+        let q = supabase.from('words').select('*', { count: 'exact', head: true });
+        if (topic && topic !== 'all') {
+          q = q.eq('topic', topic);
+        }
+        if (setId && setId !== 'all') {
+          q = q.eq('set_id', setId);
+        }
+        if (status) {
+          q = q.eq('memory_status', status);
+        }
+        return q;
+      };
+
+      const [allRes, newRes, learningRes, strugglingRes, masteredRes] = await Promise.all([
+        getQuery(),
+        getQuery('new'),
+        getQuery('learning'),
+        getQuery('struggling'),
+        getQuery('mastered'),
+      ]);
+
+      if (!allRes.error && typeof allRes.count === 'number') {
+        const all = allRes.count || 0;
+        const learning = learningRes.count || 0;
+        const struggling = strugglingRes.count || 0;
+        const mastered = masteredRes.count || 0;
+        const rawNew = newRes.count || 0;
+        const accounted = learning + struggling + mastered;
+        const newCount = Math.max(rawNew, all - accounted);
+
+        return { all, new: newCount, learning, struggling, mastered };
+      }
+    } catch (_) {
+      // Fall through to SQLite
+    }
+
+    // 2. Local SQLite Fallback
     try {
       let whereSql = ' WHERE 1=1';
       const params: any[] = [];

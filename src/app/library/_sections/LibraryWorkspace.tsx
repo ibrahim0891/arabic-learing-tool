@@ -420,18 +420,18 @@ export const LibraryWorkspace: React.FC<LibraryWorkspaceProps> = ({
     <div className="p-4 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-4 sm:gap-6 animate-fadeIn pb-16">
       {/* 1. Header */}
       <LibraryHeader
-        totalWords={tabCounts.all}
+        totalWords={tabCounts.all || totalWords}
         onOpenProgress={() => setShowProgressModal(true)}
         onOpenAdd={handleOpenAdd}
       />
 
       {/* 2. Overview Metrics Strip (fed from server tabCounts) */}
       <LibraryMetricsStrip
-        totalWords={tabCounts.all}
+        totalWords={tabCounts.all || totalWords}
         masteredCount={tabCounts.mastered}
         learningCount={tabCounts.learning}
         strugglingCount={tabCounts.struggling}
-        newCount={tabCounts.new}
+        newCount={tabCounts.all > 0 ? tabCounts.new : totalWords}
         onFilterClick={(status) => {
           setStatusFilter(status);
           setSelectedWordIds(new Set());
@@ -556,11 +556,11 @@ export const LibraryWorkspace: React.FC<LibraryWorkspaceProps> = ({
       <ProgressModal
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
-        totalWords={tabCounts.all}
+        totalWords={tabCounts.all || totalWords}
         masteredWordsCount={tabCounts.mastered}
         learningWordsCount={tabCounts.learning}
         strugglingWordsCount={tabCounts.struggling}
-        newWordsCount={tabCounts.new}
+        newWordsCount={tabCounts.all > 0 ? tabCounts.new : totalWords}
         dueNowCount={tabCounts.struggling}
       />
 
