@@ -264,7 +264,7 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
 
   if (loading) {
     return (
-      <div className="py-24 text-center text-[var(--ink-secondary)] space-y-3">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-72px)] p-6 text-center text-[var(--ink-secondary)] space-y-3">
         <div className="font-arabic text-4xl text-[var(--accent-ochre)] animate-pulse">
           جَارٍ تَحْمِيلُ البِطَاقَاتِ...
         </div>
@@ -275,23 +275,25 @@ export const FlashcardStudyArena: React.FC<FlashcardStudyArenaProps> = ({
 
   if (words.length === 0) {
     return (
-      <div className="max-w-xl mx-auto text-center py-20 px-8 border border-dashed border-[var(--border-subtle)] rounded-[12px] bg-[var(--bg-surface)] space-y-4">
-        <span className="font-arabic text-4xl text-[var(--accent-ochre)] font-bold">مُمْتَاز</span>
-        <h3 className="text-[22px] font-semibold text-[var(--ink-primary)]">
-          {filter === 'smart' ? 'All Caught Up! 🎉' : 'No Flashcards Ready'}
-        </h3>
-        <p className="text-sm text-[var(--ink-secondary)] leading-relaxed">
-          {filter === 'smart'
-            ? 'Great work! All your active words are currently practiced. They will reappear when their scheduled review date arrives.'
-            : 'Your review deck is currently clear.'}
-        </p>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => setFilter('all')}
-        >
-          Practice All Words ({totalWords}) Anyway
-        </Button>
+      <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-72px)] p-4 sm:p-6 w-full animate-fadeIn">
+        <div className="max-w-xl w-full mx-auto text-center py-16 px-8 border border-dashed border-[var(--border-subtle)] rounded-[12px] bg-[var(--bg-surface)] space-y-4">
+          <span className="font-arabic text-4xl text-[var(--accent-ochre)] font-bold">مُمْتَاز</span>
+          <h3 className="text-[22px] font-semibold text-[var(--ink-primary)]">
+            {filter === 'smart' ? 'All Caught Up! 🎉' : 'No Flashcards Ready'}
+          </h3>
+          <p className="text-sm text-[var(--ink-secondary)] leading-relaxed">
+            {filter === 'smart'
+              ? 'Great work! All your active words are currently practiced. They will reappear when their scheduled review date arrives.'
+              : 'Your review deck is currently clear.'}
+          </p>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setFilter('all')}
+          >
+            Practice All Words ({totalWords}) Anyway
+          </Button>
+        </div>
       </div>
     );
   }

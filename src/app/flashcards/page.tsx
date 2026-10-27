@@ -26,7 +26,7 @@ export default function FlashcardsPage() {
   return (
     <Suspense
       fallback={
-        <div className="py-24 text-center text-[var(--ink-secondary)] space-y-3">
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-72px)] p-6 text-center text-[var(--ink-secondary)] space-y-3">
           <div className="font-arabic text-4xl text-[var(--accent-ochre)] animate-pulse">
             جَارٍ تَحْمِيلُ البِطَاقَاتِ...
           </div>

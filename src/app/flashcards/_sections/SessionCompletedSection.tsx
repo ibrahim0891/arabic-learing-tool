@@ -25,10 +25,11 @@ export const SessionCompletedSection: React.FC<SessionCompletedSectionProps> = (
   const router = useRouter();
 
   return (
-    <Panel
-      padding="lg"
-      className="max-w-2xl mx-auto flex flex-col items-center text-center gap-6 py-12 animate-fadeIn bg-[var(--bg-surface)]"
-    >
+    <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-72px)] p-4 sm:p-6 w-full animate-fadeIn">
+      <Panel
+        padding="lg"
+        className="max-w-2xl w-full mx-auto flex flex-col items-center text-center gap-6 py-12 bg-[var(--bg-surface)] shadow-sm"
+      >
       <div className="flex flex-col items-center gap-2">
         <ArabicText
           size="hero"
@@ -84,5 +85,6 @@ export const SessionCompletedSection: React.FC<SessionCompletedSectionProps> = (
         </Button>
       </div>
     </Panel>
+  </div>
   );
 };

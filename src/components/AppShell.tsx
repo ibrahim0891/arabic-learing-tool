@@ -185,7 +185,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Content canvas: full height minus header (56px mobile / 72px desktop) for conversations */}
         <main
-          className={`flex-1 min-h-0 ${
+          className={`flex-1 min-h-0 flex flex-col ${
             isConversationsPage ? 'h-[calc(100vh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden' : ''
           }`}
         >
