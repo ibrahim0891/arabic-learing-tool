@@ -35,7 +35,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setIsAuthenticated(true);
         initApp();
       }
-    } catch (_) { }
+    } catch (_) {}
     setIsCheckingAuth(false);
   }, []);
 
@@ -71,7 +71,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const handleLock = () => {
     try {
       localStorage.removeItem('fasih_passcode');
-    } catch (_) { }
+    } catch (_) {}
     setIsAuthenticated(false);
   };
 
@@ -117,8 +117,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div
-      className={`flex bg-[var(--bg-canvas)] text-[var(--ink-primary)] selection:bg-[var(--accent-ochre)] selection:text-white font-sans max-w-full overflow-x-clip ${isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
-        }`}
+      className={`flex bg-[var(--bg-canvas)] text-[var(--ink-primary)] selection:bg-[var(--accent-ochre)] selection:text-white font-sans max-w-full overflow-x-clip ${
+        isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
+      }`}
     >
       {/* Desktop Persistent Sidebar */}
       <div className="hidden lg:block h-screen sticky top-0 shrink-0">
@@ -135,10 +136,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Mobile Drawer Overlay with smooth fade */}
       <div
-        className={`fixed inset-0 z-50 lg:hidden transition-all duration-300 ease-in-out ${isMobileMenuOpen
+        className={`fixed inset-0 z-50 lg:hidden transition-all duration-300 ease-in-out ${
+          isMobileMenuOpen
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none'
-          }`}
+        }`}
         aria-hidden={!isMobileMenuOpen}
       >
         {/* Backdrop overlay */}
@@ -149,8 +151,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Sliding Sidebar Drawer with smooth slide-in / slide-out */}
         <div
-          className={`relative z-10 w-[260px] max-w-[85vw] h-full shadow-2xl transform transition-transform duration-300 ease-out will-change-transform flex ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
+          className={`relative z-10 w-[260px] max-w-[85vw] h-full shadow-2xl transform transition-transform duration-300 ease-out will-change-transform flex ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
           <Sidebar
@@ -169,8 +172,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Main Workspace Column */}
       <div
-        className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip ${isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
-          }`}
+        className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip ${
+          isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
+        }`}
       >
         <WorkspaceHeader
           breadcrumbs={getBreadcrumbs()}
@@ -181,8 +185,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Content canvas: full height minus header (56px mobile / 72px desktop) for conversations */}
         <main
-          className={`flex-1 min-h-0 flex flex-col w-full min-w-0 ${isConversationsPage ? 'h-[calc(100vh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden' : ''
-            }`}
+          className={`flex-1 min-h-0 flex flex-col w-full min-w-0 ${
+            isConversationsPage ? 'h-[calc(100vh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden' : ''
+          }`}
         >
           {children}
         </main>
