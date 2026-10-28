@@ -19,7 +19,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   onToggleAudio,
 }) => {
   return (
-    <header className="sticky top-0 z-30 h-[56px] sm:h-[72px] px-4 sm:px-10 flex items-center justify-between gap-3 bg-[var(--bg-surface)]/95 backdrop-blur-xs border-b border-[var(--border-subtle)] shrink-0">
+    <header className="sticky top-0 z-40 h-[56px] sm:h-[72px] px-4 sm:px-10 flex items-center justify-between gap-3 bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border-subtle)] shrink-0 shadow-2xs">
       {/* Left Breadcrumb & Mobile Menu Trigger */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {onOpenMobileSidebar && (
