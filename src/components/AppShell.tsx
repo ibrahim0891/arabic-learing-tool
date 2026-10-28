@@ -172,7 +172,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Main Workspace Column */}
       <div
-        className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden ${
+        className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-clip ${
           isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
         }`}
       >
