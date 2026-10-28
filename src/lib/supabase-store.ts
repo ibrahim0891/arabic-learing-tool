@@ -106,24 +106,24 @@ export function mapSupabaseWordToModel(row: any): Word {
     explanation: row.explanation || '',
     topic: row.topic || 'daily life',
     difficulty: row.difficulty || 'beginner',
-    setId: row.set_id,
-    setName: row.set_name,
+    setId: row.set_id ?? row.setId,
+    setName: row.set_name ?? row.setName,
     pluralArabic: row.plural_arabic ?? row.pluralArabic,
     pluralTransliteration: row.plural_transliteration ?? row.pluralTransliteration,
     pluralEnglish: row.plural_english ?? row.pluralEnglish,
     oppositeArabic: row.opposite_arabic ?? row.oppositeArabic,
     oppositeTransliteration: row.opposite_transliteration ?? row.oppositeTransliteration,
     oppositeEnglish: row.opposite_english ?? row.oppositeEnglish,
-    dateAdded: row.date_added || new Date().toISOString(),
-    timesTested: Number(row.times_tested || 0),
-    timesCorrect: Number(row.times_correct || 0),
-    timesIncorrect: Number(row.times_incorrect || 0),
-    memoryStatus: row.memory_status || 'new',
-    easeFactor: Number(row.ease_factor || 2.5),
-    intervalDays: Number(row.interval_days || 0),
-    repetitionCount: Number(row.repetition_count || 0),
-    nextReviewDate: row.next_review_date || new Date().toISOString(),
-    lastReviewedDate: row.last_reviewed_date,
+    dateAdded: row.date_added || row.dateAdded || new Date().toISOString(),
+    timesTested: Number(row.times_tested ?? row.timesTested ?? 0),
+    timesCorrect: Number(row.times_correct ?? row.timesCorrect ?? 0),
+    timesIncorrect: Number(row.times_incorrect ?? row.timesIncorrect ?? 0),
+    memoryStatus: row.memory_status || row.memoryStatus || 'new',
+    easeFactor: Number(row.ease_factor ?? row.easeFactor ?? 2.5),
+    intervalDays: Number(row.interval_days ?? row.intervalDays ?? 0),
+    repetitionCount: Number(row.repetition_count ?? row.repetitionCount ?? 0),
+    nextReviewDate: row.next_review_date || row.nextReviewDate || new Date().toISOString(),
+    lastReviewedDate: row.last_reviewed_date ?? row.lastReviewedDate,
     additionalExamples: typeof row.additional_examples === 'string'
       ? (() => { try { return JSON.parse(row.additional_examples); } catch (_) { return []; } })()
       : Array.isArray(row.additional_examples)
@@ -786,11 +786,21 @@ export const dataStore = {
     const supabasePayload = mapWordModelToSupabase(updates);
     let supabaseUpdatedData: any = null;
 
-    // 1. Try Supabase update. Optional JSON columns may not exist yet on older
-    // remote schemas, so strip them one at a time and retry instead of losing
+    // 1. Try Supabase update. Optional columns may not exist yet on older
+    // remote schemas, so strip them if missing and retry instead of losing
     // the whole update.
     try {
-      const optionalColumns = ['example_breakdown', 'additional_examples', 'root_family'];
+      const optionalColumns = [
+        'example_breakdown',
+        'additional_examples',
+        'root_family',
+        'plural_arabic',
+        'plural_transliteration',
+        'plural_english',
+        'opposite_arabic',
+        'opposite_transliteration',
+        'opposite_english',
+      ];
       for (let attempt = 0; attempt <= optionalColumns.length; attempt++) {
         if (Object.keys(supabasePayload).length === 0) break;
 
@@ -800,9 +810,22 @@ export const dataStore = {
           break;
         }
 
-        const missingColumn = optionalColumns.find((column) => column in supabasePayload);
-        if (!missingColumn) break;
-        delete supabasePayload[missingColumn];
+        let removedAny = false;
+        if (error?.message) {
+          const match =
+            error.message.match(/column\s+words\.(\w+)\s+does not exist/i) ||
+            error.message.match(/could not find the '(\w+)' column/i);
+          if (match && match[1] && match[1] in supabasePayload) {
+            delete supabasePayload[match[1]];
+            removedAny = true;
+          }
+        }
+
+        if (!removedAny) {
+          const missingColumn = optionalColumns.find((column) => column in supabasePayload);
+          if (!missingColumn) break;
+          delete supabasePayload[missingColumn];
+        }
       }
     } catch (err) {}
 

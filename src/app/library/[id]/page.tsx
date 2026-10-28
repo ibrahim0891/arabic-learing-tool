@@ -21,6 +21,8 @@ import {
   Layers,
   Check,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Sliders,
   Award,
   Calendar,
@@ -70,6 +72,7 @@ export default function WordDetailPage() {
   const [customInstruction, setCustomInstruction] = useState('');
   const [exampleCount, setExampleCount] = useState<number>(3);
   const [variationType, setVariationType] = useState<'balanced' | 'grammatical' | 'difficulty' | 'idiomatic'>('balanced');
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isGeneratingExamples, setIsGeneratingExamples] = useState(false);
   const [exampleErrorMsg, setExampleErrorMsg] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -523,40 +526,6 @@ export default function WordDetailPage() {
               </div>
             )}
 
-            {/* Primary Context Sentence */}
-            <div className="p-4 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-ochre)] flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Primary Context Sentence
-                </span>
-                <AudioPronounceButton arabicText={word.exampleArabic} size="sm" />
-              </div>
-
-              <p dir="rtl" className="font-arabic text-lg sm:text-xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right">
-                {word.exampleArabic}
-              </p>
-
-              {word.exampleTransliteration && (
-                <p className="text-[11px] font-mono text-[var(--ink-muted)]">
-                  {word.exampleTransliteration}
-                </p>
-              )}
-
-              <p className="text-xs font-serif italic text-[var(--ink-primary)]">
-                "{word.exampleEnglish}"
-              </p>
-
-              <WordBreakdownPanel
-                arabic={word.exampleArabic}
-                english={word.exampleEnglish}
-                register={EXAMPLE_REGISTER}
-                wordId={word.id}
-                initialBreakdown={word.exampleBreakdown}
-                className="pt-1"
-              />
-            </div>
-
             {/* LINGUISTIC FORMS (Plural & Opposite) */}
             <div className="p-4 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center justify-between">
@@ -964,145 +933,193 @@ export default function WordDetailPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: CONTEXTUAL EXAMPLES (DESKTOP SIDE-BY-SIDE LAYOUT)                 */}
+        {/* TAB 2: CONTEXTUAL EXAMPLES (EXPANSIVE FULL-WIDTH STUDY FEED)             */}
         {/* ========================================================================= */}
         {activeTab === 'examples' && (
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start animate-fadeIn">
-            
-            {/* Left Column: AI Generator Controls */}
-            <div className="xl:col-span-5 p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 shadow-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[var(--accent-ochre)]" />
-                <h4 className="font-semibold text-sm text-[var(--ink-primary)]">
-                  Generate Situational Examples
-                </h4>
+          <div className="space-y-5 animate-fadeIn">
+            {/* Contextual Examples Header & Generator Toggle Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--bg-surface)] p-4 sm:p-5 rounded-2xl border border-[var(--border-subtle)] shadow-xs">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--ink-primary)] flex items-center gap-2">
+                  <span>Contextual Examples</span>
+                  <span className="font-arabic text-sm text-[var(--accent-ochre)] font-bold px-2 py-0.5 rounded bg-[var(--accent-ochre-dim)]">
+                    {word.arabic}
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-muted)]">
+                    {totalSentencesCount} {totalSentencesCount === 1 ? 'sentence' : 'sentences'}
+                  </span>
+                </h3>
+                <p className="text-xs text-[var(--ink-muted)] mt-1">
+                  Master how this word functions across natural spoken dialogue, professional, and everyday contexts.
+                </p>
               </div>
 
-              {/* Scenario Selection */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
-                  Situation / Setting
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {scenarios.map((sc) => {
-                    const Icon = sc.icon;
-                    const isSelected = selectedScenario === sc.id;
-                    return (
-                      <Button
-                        key={sc.id}
-                        type="button"
-                        variant="pill"
-                        size="sm"
-                        isActive={isSelected}
-                        onClick={() => setSelectedScenario(sc.id)}
-                        leftIcon={<Icon className="w-3 h-3" />}
-                      >
-                        {sc.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Variation Focus */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
-                  Variation Focus
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {variations.map((v) => {
-                    const isSelected = variationType === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => setVariationType(v.id as any)}
-                        className={`p-2 rounded-xl border text-left cursor-pointer transition text-xs ${
-                          isSelected
-                            ? 'border-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:border-[var(--accent-ochre)]/40'
-                        }`}
-                      >
-                        <div className="font-bold text-[var(--ink-primary)]">{v.label}</div>
-                        <div className="text-[10px] text-[var(--ink-muted)] line-clamp-1 mt-0.5">{v.desc}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Custom prompt input */}
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
-                  Custom Prompt (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 'At an airport', 'Expressing doubt'..."
-                  value={customInstruction}
-                  onChange={(e) => setCustomInstruction(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)]"
-                />
-              </div>
-
-              {/* Count & Submit */}
-              <div className="flex items-center gap-2 pt-1">
-                <select
-                  value={exampleCount}
-                  onChange={(e) => setExampleCount(Number(e.target.value))}
-                  className="p-2 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none"
-                >
-                  <option value={2}>2 Sentences</option>
-                  <option value={3}>3 Sentences</option>
-                  <option value={4}>4 Sentences</option>
-                  <option value={5}>5 Sentences</option>
-                </select>
-
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="md"
-                  onClick={handleGenerateExamples}
-                  isLoading={isGeneratingExamples}
-                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                  className="flex-1"
-                >
-                  Generate Examples
-                </Button>
-              </div>
-
-              {exampleErrorMsg && (
-                <div className="text-xs text-[var(--accent-terracotta)] bg-[var(--accent-terracotta)]/10 px-3 py-2 rounded-xl">
-                  {exampleErrorMsg}
-                </div>
-              )}
+              <Button
+                type="button"
+                variant={isGeneratorOpen ? 'outline' : 'primary'}
+                size="sm"
+                onClick={() => setIsGeneratorOpen(!isGeneratorOpen)}
+                leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                rightIcon={isGeneratorOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                className="shrink-0"
+              >
+                {isGeneratorOpen ? 'Close Generator' : 'Generate New Examples'}
+              </Button>
             </div>
 
-            {/* Right Column: Example Sentences Feed */}
-            <div className="xl:col-span-7 space-y-3.5">
-              
-              {/* Primary Default Sentence */}
-              <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/25 space-y-2.5 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full capitalize">
-                    Default Sentence (Primary)
+            {/* EXPANDABLE AI GENERATOR PANEL */}
+            {isGeneratorOpen && (
+              <div className="p-5 sm:p-6 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/30 space-y-5 shadow-xs animate-fadeIn">
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                  <div className="flex items-center gap-2 text-[var(--accent-ochre)]">
+                    <Sparkles className="w-4 h-4" />
+                    <h4 className="font-bold text-sm text-[var(--ink-primary)]">
+                      AI Situational Example Generator
+                    </h4>
+                  </div>
+                  <span className="text-[11px] text-[var(--ink-muted)]">
+                    Customize scenario, grammar focus, or register
                   </span>
+                </div>
+
+                {/* Scenario Selection */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+                    Situation / Setting
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {scenarios.map((sc) => {
+                      const Icon = sc.icon;
+                      const isSelected = selectedScenario === sc.id;
+                      return (
+                        <Button
+                          key={sc.id}
+                          type="button"
+                          variant="pill"
+                          size="sm"
+                          isActive={isSelected}
+                          onClick={() => setSelectedScenario(sc.id)}
+                          leftIcon={<Icon className="w-3.5 h-3.5" />}
+                        >
+                          {sc.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Variation Focus */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+                    Variation Focus
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {variations.map((v) => {
+                      const isSelected = variationType === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setVariationType(v.id as any)}
+                          className={`p-3 rounded-xl border text-left cursor-pointer transition text-xs ${
+                            isSelected
+                              ? 'border-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] shadow-xs'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-surface-elevated)] hover:border-[var(--accent-ochre)]/40'
+                          }`}
+                        >
+                          <div className="font-bold text-[var(--ink-primary)]">{v.label}</div>
+                          <div className="text-[11px] text-[var(--ink-muted)] line-clamp-2 mt-1">{v.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Prompt & Submit Bar */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end pt-1">
+                  <div className="md:col-span-7 space-y-1.5">
+                    <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+                      Custom Prompt or Topic (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 'At a train station', 'Expressing urgent need', 'Casual conversation'..."
+                      value={customInstruction}
+                      onChange={(e) => setCustomInstruction(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--accent-ochre)]"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="block text-xs font-semibold text-[var(--ink-secondary)]">
+                      Batch Count
+                    </label>
+                    <select
+                      value={exampleCount}
+                      onChange={(e) => setExampleCount(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-xs font-medium focus:outline-none"
+                    >
+                      <option value={2}>2 Sentences</option>
+                      <option value={3}>3 Sentences</option>
+                      <option value={4}>4 Sentences</option>
+                      <option value={5}>5 Sentences</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      onClick={handleGenerateExamples}
+                      isLoading={isGeneratingExamples}
+                      leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                      className="w-full"
+                    >
+                      Generate Sentences
+                    </Button>
+                  </div>
+                </div>
+
+                {exampleErrorMsg && (
+                  <div className="text-xs text-[var(--accent-terracotta)] bg-[var(--accent-terracotta)]/10 px-3.5 py-2.5 rounded-xl border border-[var(--accent-terracotta)]/25">
+                    {exampleErrorMsg}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* FULL-WIDTH SENTENCE CARDS FEED */}
+            <div className="space-y-4">
+              {/* 1. Primary Default Sentence */}
+              <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--accent-ochre)]/30 space-y-4 shadow-xs relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-1 rounded-full">
+                      Primary Context Sentence
+                    </span>
+                    <span className="text-[11px] text-[var(--ink-muted)] hidden sm:inline">
+                      Core sentence learned with this word
+                    </span>
+                  </div>
                   <AudioPronounceButton arabicText={word.exampleArabic} size="sm" />
                 </div>
 
-                <p dir="rtl" className="font-arabic text-2xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right">
-                  {word.exampleArabic}
-                </p>
-
-                {word.exampleTransliteration && (
-                  <p className="text-xs font-mono text-[var(--ink-secondary)]">
-                    {word.exampleTransliteration}
+                <div className="space-y-2">
+                  <p dir="rtl" className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-[2] sm:leading-[2.2] text-right">
+                    {word.exampleArabic}
                   </p>
-                )}
 
-                <p className="text-sm font-serif italic text-[var(--ink-primary)]">
-                  "{word.exampleEnglish}"
-                </p>
+                  {word.exampleTransliteration && (
+                    <p className="text-xs sm:text-sm font-mono text-[var(--ink-secondary)] font-medium">
+                      {word.exampleTransliteration}
+                    </p>
+                  )}
+
+                  <p className="text-sm sm:text-base font-serif italic text-[var(--ink-primary)]">
+                    &ldquo;{word.exampleEnglish}&rdquo;
+                  </p>
+                </div>
 
                 <WordBreakdownPanel
                   arabic={word.exampleArabic}
@@ -1110,20 +1127,35 @@ export default function WordDetailPage() {
                   register={EXAMPLE_REGISTER}
                   wordId={word.id}
                   initialBreakdown={word.exampleBreakdown}
-                  className="pt-1"
+                  className="pt-2"
                 />
               </div>
 
-              {/* Additional Sentences */}
+              {/* 2. Additional Generated Sentences */}
               {parsedAdditional.length === 0 ? (
-                <div className="p-8 rounded-2xl border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--ink-muted)] bg-[var(--bg-surface)]">
-                  No additional examples generated yet. Use the generator on the left to create contextual sentences!
+                <div className="p-8 sm:p-10 rounded-2xl border border-dashed border-[var(--border-subtle)] text-center space-y-3 bg-[var(--bg-surface)]">
+                  <BookOpen className="w-8 h-8 text-[var(--ink-muted)] mx-auto opacity-60" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-[var(--ink-primary)]">No situational examples yet</p>
+                    <p className="text-xs text-[var(--ink-muted)] max-w-md mx-auto">
+                      Generate context-rich sentences to practice this word in daily dialogue, travel, work, or specific grammatical variations.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsGeneratorOpen(true)}
+                    leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                  >
+                    Open Sentence Generator
+                  </Button>
                 </div>
               ) : (
                 parsedAdditional.map((ex, idx) => (
                   <div
                     key={ex.id || idx}
-                    className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2.5 hover:border-[var(--accent-ochre)]/40 transition shadow-xs"
+                    className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 hover:border-[var(--accent-ochre)]/40 transition shadow-xs"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[10px] font-semibold text-[var(--accent-ochre)] bg-[var(--accent-ochre-dim)] px-2.5 py-0.5 rounded-full capitalize">
@@ -1144,16 +1176,16 @@ export default function WordDetailPage() {
                     </div>
 
                     {confirmDeleteId === ex.id && (
-                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 animate-fadeIn">
+                      <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-300 animate-fadeIn">
                         <span className="flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                          Delete this example?
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          Delete this example sentence?
                         </span>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteId(null)}
-                            className="px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--ink-secondary)] text-xs cursor-pointer"
+                            className="px-2.5 py-1 rounded bg-[var(--bg-surface)] text-[var(--ink-secondary)] text-xs cursor-pointer hover:text-[var(--ink-primary)]"
                           >
                             Cancel
                           </button>
@@ -1161,27 +1193,29 @@ export default function WordDetailPage() {
                             type="button"
                             onClick={() => handleDeleteExample(ex.id)}
                             disabled={isDeletingExampleId === ex.id}
-                            className="px-2.5 py-0.5 rounded bg-red-600 text-white font-bold text-xs cursor-pointer"
+                            className="px-2.5 py-1 rounded bg-red-600 text-white font-bold text-xs cursor-pointer hover:bg-red-700"
                           >
-                            {isDeletingExampleId === ex.id ? 'Deleting...' : 'Confirm'}
+                            {isDeletingExampleId === ex.id ? 'Deleting...' : 'Confirm Delete'}
                           </button>
                         </div>
                       </div>
                     )}
 
-                    <p dir="rtl" className="font-arabic text-2xl font-semibold text-[var(--ink-primary)] harakat-text leading-relaxed text-right">
-                      {ex.arabic}
-                    </p>
-
-                    {ex.transliteration && (
-                      <p className="text-xs font-mono text-[var(--ink-secondary)]">
-                        {ex.transliteration}
+                    <div className="space-y-2">
+                      <p dir="rtl" className="font-arabic text-2xl sm:text-3xl font-semibold text-[var(--ink-primary)] harakat-text leading-[2] sm:leading-[2.2] text-right">
+                        {ex.arabic}
                       </p>
-                    )}
 
-                    <p className="text-sm font-serif italic text-[var(--ink-primary)]">
-                      "{ex.english}"
-                    </p>
+                      {ex.transliteration && (
+                        <p className="text-xs sm:text-sm font-mono text-[var(--ink-secondary)] font-medium">
+                          {ex.transliteration}
+                        </p>
+                      )}
+
+                      <p className="text-sm sm:text-base font-serif italic text-[var(--ink-primary)]">
+                        &ldquo;{ex.english}&rdquo;
+                      </p>
+                    </div>
 
                     <WordBreakdownPanel
                       arabic={ex.arabic}
@@ -1190,7 +1224,7 @@ export default function WordDetailPage() {
                       wordId={word.id}
                       exampleId={ex.id}
                       initialBreakdown={ex.breakdown}
-                      className="pt-1"
+                      className="pt-2"
                     />
                   </div>
                 ))
