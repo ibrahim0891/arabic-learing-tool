@@ -50,14 +50,14 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
 
   return (
     <div
-      className={`p-4 sm:p-5 rounded-[12px] border transition-all duration-150 flex flex-col gap-3.5 sm:gap-4 ${
+      className={`p-3.5 sm:p-5 rounded-[12px] border transition-all duration-150 flex flex-col gap-3.5 sm:gap-4 w-full min-w-0 overflow-hidden ${
         isSelected
           ? 'bg-[var(--bg-accent-tint)]/60 border-[var(--accent-ochre)] shadow-xs ring-1 ring-[var(--accent-ochre)]'
           : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--accent-ochre)]/50 hover:shadow-2xs'
       }`}
     >
       {/* 1. Card Top Metadata Row */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-[var(--border-subtle)]/70">
+      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-[var(--border-subtle)]/70 min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-wrap">
           {/* Checkbox */}
           <button
@@ -107,31 +107,31 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
           <span className="text-[11px] text-[var(--ink-muted)] font-medium hidden md:inline">
             Tested {word.timesTested}x ({accuracy}%)
           </span>
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
+          <Badge variant={statusVariant} className="whitespace-nowrap">{statusLabel}</Badge>
         </div>
       </div>
 
       {/* 2. Main Content Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start min-w-0">
         {/* Left: Arabic word & English Translation (5 of 12 cols) */}
-        <div className="lg:col-span-5 space-y-1.5">
+        <div className="lg:col-span-5 space-y-1.5 min-w-0">
           <Link
             href={`/library/${word.id}`}
-            className="group block hover:opacity-90 transition"
+            className="group block hover:opacity-90 transition min-w-0"
             title="Click to view word details & root family"
           >
-            <div className="flex items-baseline gap-2.5 sm:gap-3 flex-wrap">
+            <div className="flex items-baseline gap-2.5 sm:gap-3 flex-wrap min-w-0">
               <ArabicText
                 as="span"
                 size="2xl"
                 weight="bold"
                 color="accent"
-                className="text-[30px] sm:text-[38px] leading-[48px] sm:leading-[54px] group-hover:brightness-95 block"
+                className="text-[28px] sm:text-[38px] leading-[44px] sm:leading-[54px] group-hover:brightness-95 block break-words"
               >
                 {word.arabic}
               </ArabicText>
               {word.transliteration && (
-                <span className="text-[13px] font-mono text-[var(--ink-secondary)] tracking-wide font-medium">
+                <span className="text-[12px] sm:text-[13px] font-mono text-[var(--ink-secondary)] tracking-wide font-medium break-all">
                   ({word.transliteration})
                 </span>
               )}
@@ -140,7 +140,7 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
 
           <Link
             href={`/library/${word.id}`}
-            className="font-serif text-[17px] sm:text-[20px] font-bold text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] transition block"
+            className="font-serif text-[16px] sm:text-[20px] font-bold text-[var(--ink-primary)] hover:text-[var(--accent-ochre)] transition block break-words"
             title="Click to view word details & root family"
           >
             {word.english}
@@ -154,7 +154,7 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
         </div>
 
         {/* Right: Contextual Example Sentence Showcase (7 of 12 cols) */}
-        <div className="lg:col-span-7 p-3 sm:p-3.5 rounded-[10px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-2">
+        <div className="lg:col-span-7 p-3 sm:p-3.5 rounded-[10px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-2 min-w-0 w-full overflow-hidden">
           <div className="flex items-start justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-ochre)] flex items-center gap-1.5">
               <BookOpen className="w-3 h-3" /> Context Sentence
@@ -170,19 +170,19 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
             as="p"
             size="md"
             weight="medium"
-            className="text-[17px] sm:text-[19px] leading-[28px] sm:leading-[30px] text-right"
+            className="text-[16px] sm:text-[19px] leading-[26px] sm:leading-[30px] text-right break-words"
           >
             {word.exampleArabic}
           </ArabicText>
 
           {word.exampleTransliteration && (
-            <p className="text-[11px] font-mono text-[var(--ink-secondary)] text-left leading-normal">
+            <p className="text-[11px] font-mono text-[var(--ink-secondary)] text-left leading-normal break-words">
               {word.exampleTransliteration}
             </p>
           )}
 
           {word.exampleEnglish && (
-            <p className="text-[12px] sm:text-[13px] text-[var(--ink-primary)] italic text-left font-serif leading-relaxed">
+            <p className="text-[12px] sm:text-[13px] text-[var(--ink-primary)] italic text-left font-serif leading-relaxed break-words">
               "{word.exampleEnglish}"
             </p>
           )}
@@ -190,7 +190,7 @@ export const WordListItemCard: React.FC<WordListItemCardProps> = ({
       </div>
 
       {/* 3. Card Bottom Action Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2.5 border-t border-[var(--border-subtle)]/70">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2.5 border-t border-[var(--border-subtle)]/70 min-w-0">
         {/* Left: Tags & Mobile Action Buttons */}
         <div className="flex items-center justify-between sm:justify-start gap-2 text-[11px] text-[var(--ink-muted)]">
           <div className="flex items-center gap-1.5 flex-wrap">

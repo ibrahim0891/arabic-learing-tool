@@ -1,6 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Cinzel:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+html, body {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
 :root {
   /* AL-MU'ALLIM (المُعَلِّم) WORKSPACE DESIGN SYSTEM */
   --bg-primary: #F6F7F8;

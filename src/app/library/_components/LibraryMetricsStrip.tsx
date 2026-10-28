@@ -24,7 +24,7 @@ export const LibraryMetricsStrip: React.FC<LibraryMetricsStripProps> = ({
   const masteredPct = totalWords > 0 ? Math.round((masteredCount / totalWords) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full min-w-0">
       {/* 1. Total Words */}
       <MetricCard
         label="Total Vocabulary"

@@ -20,22 +20,22 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 }) => {
   return (
     <Panel
-      padding="md"
+      padding="none"
       hoverable={!!onClick}
       onClick={onClick}
-      className={`flex flex-col justify-between min-h-[115px] gap-3 ${className}`}
+      className={`flex flex-col justify-between min-h-[95px] sm:min-h-[115px] p-3 sm:p-5 gap-2 sm:gap-3 min-w-0 w-full overflow-hidden ${className}`}
     >
-      <div className="flex items-center justify-between text-[12px] leading-[18px] text-[var(--ink-secondary)]">
-        <span className="font-normal">{label}</span>
-        {icon && <span className="text-[var(--ink-secondary)] opacity-80">{icon}</span>}
+      <div className="flex items-center justify-between text-[11px] sm:text-[12px] leading-tight text-[var(--ink-secondary)] gap-1.5 min-w-0">
+        <span className="font-normal truncate">{label}</span>
+        {icon && <span className="text-[var(--ink-secondary)] opacity-80 shrink-0">{icon}</span>}
       </div>
 
-      <div className="flex items-baseline gap-3">
-        <span className="text-[30px] leading-[45px] font-semibold text-[var(--ink-primary)] tracking-tight">
+      <div className="flex items-baseline gap-1.5 sm:gap-3 flex-wrap min-w-0">
+        <span className="text-[22px] sm:text-[30px] leading-tight font-semibold text-[var(--ink-primary)] tracking-tight">
           {value}
         </span>
         {subLabel && (
-          <span className="text-[12px] leading-[18px] text-[var(--ink-secondary)] font-normal">
+          <span className="text-[10px] sm:text-[12px] leading-tight text-[var(--ink-secondary)] font-normal truncate max-w-full">
             {subLabel}
           </span>
         )}

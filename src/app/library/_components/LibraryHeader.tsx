@@ -20,8 +20,8 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   onOpenAdd,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
-      <div className="space-y-1">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-[var(--border-subtle)] w-full min-w-0">
+      <div className="space-y-1 min-w-0">
         <div className="flex hidden flex-wrap items-center gap-2.5">
           <Badge variant="ochre">
             <span className="flex items-center gap-1.5 whitespace-nowrap">
@@ -34,8 +34,8 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </span>
         </div>
 
-        <div className="flex items-baseline gap-3">
-          <Heading level={1} className="text-[24px] sm:text-[28px] font-bold text-[var(--ink-primary)]">
+        <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap min-w-0">
+          <Heading level={1} className="text-[20px] xs:text-[22px] sm:text-[28px] font-bold text-[var(--ink-primary)] leading-tight break-words">
             Your Arabic Vocabulary Library
           </Heading>
           <ArabicText as="span" size="lg" weight="bold" color="accent" className="hidden md:inline">
@@ -43,7 +43,7 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </ArabicText>
         </div>
 
-        <Text color="secondary" variant="secondary" className="max-w-xl">
+        <Text color="secondary" variant="secondary" className="max-w-xl text-[12px] sm:text-[14px]">
           Browse, search, edit roots, and launch custom review decks from your personal dictionary.
         </Text>
       </div>

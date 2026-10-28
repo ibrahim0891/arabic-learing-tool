@@ -48,9 +48,9 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   practiceDeckCount,
 }) => {
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-2 rounded-[12px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xs">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-2 rounded-[12px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xs w-full min-w-0">
       {/* Left: Status Filter Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full min-w-0 pb-0.5 sm:pb-0">
         {STATUS_TABS.map((tab) => {
           const isActive = statusFilter === tab.key;
           const count = tabCounts[tab.key] || 0;
@@ -60,7 +60,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
               key={tab.key}
               type="button"
               onClick={() => onStatusFilterChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer select-none ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-semibold whitespace-nowrap transition-all cursor-pointer select-none shrink-0 ${
                 isActive
                   ? 'bg-[var(--accent-ochre)] text-white shadow-xs'
                   : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)]'
@@ -85,11 +85,11 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
       </div>
 
       {/* Right controls: Tier 1 (Search + Topic Filter) & Tier 2 (Practice Deck + View toggle) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full lg:w-auto">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full lg:w-auto min-w-0">
         {/* Tier 1: Search + Topic Filter */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
           {/* Search Input */}
-          <div className="relative flex-1 sm:w-48 sm:flex-none">
+          <div className="relative flex-1 min-w-0 sm:w-48 sm:flex-none">
             <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -112,11 +112,11 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
           </div>
 
           {/* Topic Filter */}
-          <div className="w-32 sm:w-36 shrink-0 relative">
+          <div className="w-28 sm:w-36 shrink-0 relative">
             <select
               value={topicFilter}
               onChange={(e) => onTopicFilterChange(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none focus:border-[var(--accent-ochre)] cursor-pointer appearance-none pr-6"
+              className="w-full px-2.5 py-1.5 rounded-[8px] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--ink-primary)] text-[12px] font-medium focus:outline-none focus:border-[var(--accent-ochre)] cursor-pointer appearance-none pr-5 truncate"
             >
               <option value="all">All Topics</option>
               <option value="daily life">Daily Life</option>
@@ -133,7 +133,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         </div>
 
         {/* Tier 2: Practice Deck Button + View Mode Toggle */}
-        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto min-w-0">
           {/* Practice Deck Button */}
           <Button
             variant="outline"

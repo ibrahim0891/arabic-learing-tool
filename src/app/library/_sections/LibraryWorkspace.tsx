@@ -417,7 +417,7 @@ export const LibraryWorkspace: React.FC<LibraryWorkspaceProps> = ({
   const practiceDeckCount = selectedWordIds.size > 0 ? selectedWordIds.size : totalWords;
 
   return (
-    <div className="p-4 sm:p-10 max-w-[1216px] mx-auto flex flex-col gap-4 sm:gap-6 animate-fadeIn pb-16">
+    <div className="p-3.5 sm:p-10 max-w-[1216px] w-full min-w-0 mx-auto flex flex-col gap-4 sm:gap-6 animate-fadeIn pb-16">
       {/* 1. Header */}
       <LibraryHeader
         totalWords={tabCounts.all || totalWords}

@@ -117,7 +117,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div
-      className={`flex bg-[var(--bg-canvas)] text-[var(--ink-primary)] selection:bg-[var(--accent-ochre)] selection:text-white font-sans ${
+      className={`flex bg-[var(--bg-canvas)] text-[var(--ink-primary)] selection:bg-[var(--accent-ochre)] selection:text-white font-sans max-w-full overflow-x-clip ${
         isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
       }`}
     >
@@ -172,7 +172,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Main Workspace Column */}
       <div
-        className={`flex-1 flex flex-col min-w-0 ${
+        className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden ${
           isConversationsPage ? 'h-screen overflow-hidden' : 'min-h-screen'
         }`}
       >
@@ -185,7 +185,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Content canvas: full height minus header (56px mobile / 72px desktop) for conversations */}
         <main
-          className={`flex-1 min-h-0 flex flex-col ${
+          className={`flex-1 min-h-0 flex flex-col w-full min-w-0 ${
             isConversationsPage ? 'h-[calc(100vh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden' : ''
           }`}
         >
