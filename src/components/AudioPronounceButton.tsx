@@ -26,7 +26,7 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoadingTTS, setIsLoadingTTS] = useState(false);
 
-  // Fallback to Web Speech API (window.speechSynthesis)
+  // Last-resort fallback: on-device Web Speech API (OS voices)
   const speakWithWebSpeechFallback = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       return;
@@ -34,13 +34,17 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(arabicText);
-    utterance.lang = 'ar-SA';
+    utterance.lang = 'ar-EG';
     utterance.rate = 0.85;
 
     const voices = window.speechSynthesis.getVoices();
-    const arabicVoice = voices.find(
-      (v) => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic')
-    );
+    // Prefer the regional voices the server normally uses before accepting any Arabic voice.
+    const preferredLocales = ['ar-EG', 'ar-SA', 'ar-SY'];
+    const arabicVoice =
+      preferredLocales
+        .map((locale) => voices.find((v) => v.lang.replace('_', '-').startsWith(locale)))
+        .find(Boolean) ??
+      voices.find((v) => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic'));
     if (arabicVoice) {
       utterance.voice = arabicVoice;
     }
@@ -69,7 +73,7 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
       return;
     }
 
-    // Tier 1: Try Google Translate Arabic TTS via /api/tts
+    // Tier 1: Microsoft Edge neural voices via /api/tts (natural Arabic)
     setIsLoadingTTS(true);
     try {
       const audioUrl = `/api/tts?text=${encodeURIComponent(trimmedText)}`;
@@ -87,8 +91,8 @@ export const AudioPronounceButton: React.FC<AudioPronounceButtonProps> = ({
 
       playAudioBlobUrl(objectUrl);
     } catch (err) {
-      console.warn('Google Translate TTS unavailable, using browser Web Speech API fallback:', err);
-      // Tier 2: Automatic fallback to Web Speech API
+      console.warn('Neural TTS unavailable, using browser Web Speech API fallback:', err);
+      // Tier 2: Automatic fallback to the device's own voices
       speakWithWebSpeechFallback();
     } finally {
       setIsLoadingTTS(false);
