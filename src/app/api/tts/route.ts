@@ -1,123 +1,111 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  ARABIC_TTS_VOICES,
+  cacheAudio,
+  getCachedAudio,
+  isSupportedVoice,
+  synthesizeArabic,
+  TTS_MIME_TYPE,
+} from '@/lib/tts';
 
-// Server-side in-memory cache to instantly replay audio without any external requests
-const serverAudioCache = new Map<string, { audioBase64: string; mimeType: string }>();
+// Edge TTS needs Node's networking APIs, so this route must not run on the edge runtime.
+export const runtime = 'nodejs';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const text = searchParams.get('text');
+const MAX_TEXT_LENGTH = 1200;
 
+function badRequest(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+
+function normalize(text: string | null | undefined, voice: string | null | undefined) {
   if (!text || !text.trim()) {
-    return NextResponse.json({ error: 'Text query parameter is required' }, { status: 400 });
+    return { error: badRequest('Text query parameter is required') } as const;
   }
 
   const trimmed = text.trim();
-
-  // 1. Check in-memory cache
-  const cached = serverAudioCache.get(trimmed);
-  if (cached) {
-    const buffer = Buffer.from(cached.audioBase64, 'base64');
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': cached.mimeType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    });
+  if (trimmed.length > MAX_TEXT_LENGTH) {
+    return { error: badRequest(`Text must be ${MAX_TEXT_LENGTH} characters or fewer`) } as const;
   }
 
+  if (voice && !isSupportedVoice(voice)) {
+    return {
+      error: badRequest(`Unsupported voice. Use one of: ${ARABIC_TTS_VOICES.join(', ')}`),
+    } as const;
+  }
+
+  return { trimmed, voices: voice ? [voice] : ARABIC_TTS_VOICES } as const;
+}
+
+function audioResponse(audio: Buffer) {
+  return new NextResponse(new Uint8Array(audio), {
+    status: 200,
+    headers: {
+      'Content-Type': TTS_MIME_TYPE,
+      'Content-Length': String(audio.length),
+      // Audio for a given phrase never changes, so browsers/CDNs can keep it forever.
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    },
+  });
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const result = normalize(searchParams.get('text'), searchParams.get('voice'));
+
+  if ('error' in result) return result.error;
+  const { trimmed, voices } = result;
+
+  const cacheKey = `${voices[0]}::${trimmed}`;
+  const cached = getCachedAudio(cacheKey);
+  if (cached) return audioResponse(cached);
+
   try {
-    // 2. Fetch native Arabic speech from Google Translate TTS endpoint
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=${encodeURIComponent(trimmed)}`;
-    const googleRes = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Referer: 'https://translate.google.com/',
-      },
-    });
-
-    if (!googleRes.ok) {
-      throw new Error(`Google Translate TTS responded with status ${googleRes.status}`);
-    }
-
-    const arrayBuffer = await googleRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Save to memory cache as base64 for fast subsequent lookups
-    serverAudioCache.set(trimmed, {
-      audioBase64: buffer.toString('base64'),
-      mimeType: 'audio/mpeg',
-    });
-
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    });
-  } catch (error: any) {
-    console.warn('Google Translate TTS fetch error:', error?.message || error);
-    return NextResponse.json(
-      { error: error?.message || 'Google Translate TTS failed' },
-      { status: 502 }
-    );
+    const audio = await synthesizeArabic(trimmed, { voices });
+    cacheAudio(cacheKey, audio);
+    return audioResponse(audio);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[api/tts] synthesis failed:', message);
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  let body: { text?: unknown; voice?: unknown };
+
   try {
-    const body = await req.json();
-    const text = body.text;
+    body = await req.json();
+  } catch {
+    return badRequest('Request body must be valid JSON');
+  }
 
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      return NextResponse.json({ error: 'Text prompt is required' }, { status: 400 });
-    }
+  const text = typeof body.text === 'string' ? body.text : null;
+  const voice = typeof body.voice === 'string' ? body.voice : null;
+  const result = normalize(text, voice);
 
-    const trimmed = text.trim();
+  if ('error' in result) return result.error;
+  const { trimmed, voices } = result;
 
-    // Check in-memory cache
-    const cached = serverAudioCache.get(trimmed);
-    if (cached) {
-      return NextResponse.json({
-        audioContent: cached.audioBase64,
-        mimeType: cached.mimeType,
-      });
-    }
-
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ar&client=tw-ob&q=${encodeURIComponent(trimmed)}`;
-    const googleRes = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Referer: 'https://translate.google.com/',
-      },
+  const cacheKey = `${voices[0]}::${trimmed}`;
+  const cached = getCachedAudio(cacheKey);
+  if (cached) {
+    return NextResponse.json({
+      audioContent: cached.toString('base64'),
+      mimeType: TTS_MIME_TYPE,
     });
+  }
 
-    if (!googleRes.ok) {
-      throw new Error(`Google Translate TTS responded with ${googleRes.status}`);
-    }
+  try {
+    const audio = await synthesizeArabic(trimmed, { voices });
+    cacheAudio(cacheKey, audio);
 
-    const arrayBuffer = await googleRes.arrayBuffer();
-    const base64Audio = Buffer.from(arrayBuffer).toString('base64');
-
-    const payload = {
-      audioContent: base64Audio,
-      mimeType: 'audio/mpeg',
-    };
-
-    serverAudioCache.set(trimmed, {
-      audioBase64: base64Audio,
-      mimeType: 'audio/mpeg',
+    return NextResponse.json({
+      audioContent: audio.toString('base64'),
+      mimeType: TTS_MIME_TYPE,
     });
-
-    return NextResponse.json(payload);
-  } catch (error: any) {
-    console.warn('TTS POST handler error:', error?.message || error);
-    return NextResponse.json(
-      { error: error?.message || 'TTS generation failed' },
-      { status: 502 }
-    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[api/tts] synthesis failed:', message);
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
